@@ -47,7 +47,7 @@ utility, which is being maximized) is available as `mm`:
     julia> res.mm
     3.0
 
-The allocation functions also permit a matrix allocation as a shortcut,
+The allocation functions also permit a matrix argument as a shortcut,
 implicitly creating an `Additive`. For example, you can find a maximum Nash
 welfare (MNW) allocation as follows:
 
