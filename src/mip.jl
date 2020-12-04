@@ -179,6 +179,69 @@ end
 enforce(C::Nothing) = identity
 
 
+# Enforce item conflict constraints on the JuMP model.
+enforce(C::Conflicts) = function(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    G = graph(C)
+
+    @assert nv(G) == ni(V)
+
+    for e in edges(G)
+        g, h = src(e), dst(e)
+        for i in agents(V)
+            @constraint(model, A[i, g] + A[i, h] <= 1)
+        end
+    end
+
+    return ctx
+
+end
+
+
+# Enforce envy-freeness up to a single object (EF1) on the JuMP model.
+function enforce_ef1(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    N, M = agents(V), items(V)
+
+    # D[i, j, g]: Item g dropped for i to not envy j
+    @variable(model, D[N, N, M], binary=true)
+
+    for i in N, j in N
+
+        # Drop at most one item for envy-freeness
+        @constraint(model, sum(D[i, j, g] for g in M) <= 1)
+
+        for g in M
+            # Drop only items allocated to j to make i not envy j
+            @constraint(model, D[i, j, g] <= A[j, g])
+        end
+
+    end
+
+    for i in N, j in N
+
+        i == j && continue
+
+        # Agent i's value for her own bundle
+        vii = sum(value(V, i, g) * A[i, g] for g in M)
+
+        # Agent i's value for j's bundle, without dropped item
+        vij1 = sum(value(V, i, g) * (A[j, g] - D[i, j, g]) for g in M)
+
+        # No envy, once an item is (possibly) dropped:
+        @constraint(model, vii >= vij1)
+
+    end
+
+    return ctx
+
+end
+
+
 # Actual allocation methods
 
 
@@ -223,6 +286,25 @@ function alloc_mnw(V, C=nothing; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mnw |>
+    enforce(C) |>
+    solve_mip |>
+    mnw_result
+
+end
+
+
+"""
+    alloc_mnw_ef1(V, C; solver=conf.MIP_SOLVER)
+
+Equivalent to `alloc_mnw`, except that EF1 is enforced. Without any added
+constraints, MNW implies EF1, so this function is not needed in that case.
+Therefore the argument `C` is not optional.
+"""
+function alloc_mnw_ef1(V, C; solver=conf.MIP_SOLVER)
+
+    init_mip(V, solver) |>
+    achieve_mnw |>
+    enforce_ef1 |>
     enforce(C) |>
     solve_mip |>
     mnw_result

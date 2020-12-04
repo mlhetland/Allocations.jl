@@ -330,3 +330,26 @@ assumed to consist of a `Valuation` object and at most one `Constraint`
 object, embodying any and all constraints placed on feasible solutions.
 """
 abstract type Constraint end
+
+
+"""
+    struct Conflicts{T <: AbstractGraph} <: Constraint
+
+A kind of constraint -- or set of constraints -- that indicates that certain
+items conflict, and thus cannot be allocated to the same agent. The
+constraints are represented as a *conflict graph*
+(`LightGraphs.AbstractGraph`), with items as nodes, and edges representing
+conflicts. The `Conflicts` type is just a wrapper for dispatch purposes, with
+the underlying graph available through the `graph` accessor.
+"""
+struct Conflicts{T <: AbstractGraph} <: Constraint
+    graph::T
+end
+
+
+"""
+    graph(C::Conflicts)
+
+Return the conflict graph wrapped by a `Conflicts` object.
+"""
+graph(C::Conflicts) = C.graph

@@ -59,3 +59,21 @@ Check that the allocation `A` obeys the `Constraint` `C`, given the valuation
 `V`.
 """
 function check end
+
+
+"""
+    check(V, A, C::Conflicts)
+
+Check whether the allocation `A` respects the item conflicts `C`.
+"""
+function check(V, A, C::Conflicts)
+
+    G = graph(C)
+
+    for e in edges(G)
+        isempty(owners(A, src(e)) ∩ owners(A, dst(e))) || return false
+    end
+
+    return true
+
+end

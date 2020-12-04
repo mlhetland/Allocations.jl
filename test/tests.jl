@@ -1,4 +1,5 @@
 using Allocations
+using LightGraphs
 using Test
 
 # For matching test:
@@ -98,6 +99,16 @@ function runtests()
 
     end
 
+    @testset "Conflicts" begin
+
+        C = Conflicts(star_graph(10))
+
+        @test C isa Conflicts
+
+        @test graph(C) isa AbstractGraph
+
+    end
+
 end
 
 @testset "Utilities" begin
@@ -167,6 +178,50 @@ end
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
         @test res.mnw ≈ 3 * (4 + 3)
+
+    end
+
+    @testset "MNW with constraints" begin
+
+        G = path_graph(m)
+        C = Conflicts(G)
+
+        res = alloc_mnw(V)
+        resc = alloc_mnw(V, C)
+
+        @test check(V, resc.alloc, C)
+
+        @test resc.alloc isa Allocation
+        @test resc.mnw > 0
+
+        # Adding constraint can't improve objective.
+        @test resc.mnw <= res.mnw
+
+    end
+
+    @testset "MNW+EF1 with conflicts" begin
+
+        # Specific example (V and G) where MNW does not lead to EF1:
+
+        V = Additive([10  5  8  1  2  9; 6  1  9  6  8  9])
+
+        G = SimpleGraph(ni(V))
+        add_edge!(G, 3, 4)
+        add_edge!(G, 5, 6)
+
+        C = Conflicts(G)
+
+        res = alloc_mnw(V, C)
+
+        @test !check_ef1(V, res.alloc)
+
+        res1 = alloc_mnw_ef1(V, C)
+
+        @test res1.alloc isa Allocation
+        @test check_ef1(V, res1.alloc)
+
+        # MNW did not yield EF1, so enforcing EF1 should reduce MNW:
+        @test res1.mnw < res.mnw
 
     end
 
