@@ -317,3 +317,16 @@ value_x(V::Additive, i, S) =
 Set the value of item `j`, according to agent `i`, to `v`.
 """
 value!(V::Additive, i, j, v) = V.values[i, j] = v
+
+
+## Constraints ###############################################################
+
+
+"""
+    abstract type Constraint <: Any
+
+Abstract supertype of various kinds of constraints. An allocation problem is
+assumed to consist of a `Valuation` object and at most one `Constraint`
+object, embodying any and all constraints placed on feasible solutions.
+"""
+abstract type Constraint end

@@ -50,3 +50,12 @@ valuation `V`, i.e., if no agent strictly prefers another agent's bundle,
 given that an appropriate (e.g., the least valuable) item is removed.
 """
 check_efx(V, A) = check_ef_(V, A, value_x)
+
+
+"""
+    check(V, A, C)
+
+Check that the allocation `A` obeys the `Constraint` `C`, given the valuation
+`V`.
+"""
+function check end

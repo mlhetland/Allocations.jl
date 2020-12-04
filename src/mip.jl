@@ -22,9 +22,10 @@ MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing)
 # and any other result variables (such as the objective value) in a named
 # tuple.
 #
-# The "achieve" functions modify the objective function. At most one "achieve"
-# function should be used in a single pipeline; otherwise, the second one
-# would overwrite the objective of the first one.
+# The "enforce" functions add constraints to the MIP, while the "achieve"
+# functions also modify the objective function. At most one "achieve" function
+# should be used in a single pipeline; otherwise, the second one would
+# overwrite the objective of the first one.
 
 
 # Set up a MIPContext with based on a valuation. Initializes a JuMP model with
@@ -170,6 +171,14 @@ achieve_mgg(wt) = function(ctx)
 
 end
 
+
+## Objective-preserving pipeline steps (enforce_...)
+
+
+# Enforce no constraints on the JuMP model.
+enforce(C::Nothing) = identity
+
+
 # Actual allocation methods
 
 
@@ -186,16 +195,20 @@ end
 
 
 """
-    alloc_mnw(V; solver=conf.MIP_SOLVER)
+    alloc_mnw(V[, C]; solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
-valuation `V` The solution is found using the approach of Caragiannis et al.
-in their 2019 paper [The Unreasonable Fairness of Maximum Nash
-Welfare](https://doi.org/10.1145/3355902), with a minor modifications:
+valuation `V`, possibly subject to the constraints given by the `Constraint`
+object `C`. The solution is found using the approach of Caragiannis et al. in
+their 2019 paper [The Unreasonable Fairness of Maximum Nash
+Welfare](https://doi.org/10.1145/3355902), with two minor modifications:
 
- - Rather than hard-coding a maximum valuation (arising from the assumption
+1. Rather than hard-coding a maximum valuation (arising from the assumption
    that the values of each agent sum to 1000), this maximum is extracted from
-   `V`.
+   `V`; and
+
+2. Extra constraints are permitted (through the object `C`), possibly lowering
+   the attainable MNW.
 
 Because of how the integer program is constructed, it is sensitive to
 precision effects, where a high number of agents, can make it impossible to
@@ -206,10 +219,11 @@ halted.
 The return value is a named tuple with fields `alloc` (the `Allocation`) and
 `mnw` (the achieved Nash welfare for the agents with nonzero utility).
 """
-function alloc_mnw(V; solver=conf.MIP_SOLVER)
+function alloc_mnw(V, C=nothing; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mnw |>
+    enforce(C) |>
     solve_mip |>
     mnw_result
 
@@ -223,16 +237,17 @@ end
 
 
 """
-    alloc_mm(V; solver=conf.MIP_SOLVER)
+    alloc_mm(V[, C]; solver=conf.MIP_SOLVER)
 
 Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
 bundle value is maximized. The return value is a named tuple with fields
 `alloc` (the `Allocation`) and `mm` (the lowest agent utility).
 """
-function alloc_mm(V; solver=conf.MIP_SOLVER)
+function alloc_mm(V, C=nothing; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mm |>
+    enforce(C) |>
     solve_mip |>
     mm_result
 
@@ -240,7 +255,7 @@ end
 
 
 """
-    alloc_mms(V; solver=conf.MIP_SOLVER)
+    alloc_mms(V[, C]; solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -250,7 +265,7 @@ Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
 with fields `alloc` (the `Allocation`) and `alpha`, the lowest fraction of MMS
 that any agent achieves (is at least 1 exactly when the allocation is MMS).
 """
-function alloc_mms(V::Additive; solver=conf.MIP_SOLVER)
+function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
     N, M = agents(V), items(V)
 
@@ -262,7 +277,7 @@ function alloc_mms(V::Additive; solver=conf.MIP_SOLVER)
         Vi = Additive([value(V, i, g) for _ in N, g in M])
 
         # maximin in this scenario is MMS for agent i
-        res = alloc_mm(Vi, solver=solver)
+        res = alloc_mm(Vi, C, solver=solver)
 
         # Scale agent i's values by agent i's MMS
         for g in M
@@ -272,15 +287,15 @@ function alloc_mms(V::Additive; solver=conf.MIP_SOLVER)
     end
 
     # maximin with scaled values is as close to the MMS guarantee as possible
-    res = alloc_mm(Additive(X), solver=solver)
+    res = alloc_mm(Additive(X), C, solver=solver)
 
     return (alloc=res.alloc, alpha=res.mm)
 
 end
 
 
-alloc_mms(V::Matrix; solver=conf.MIP_SOLVER) =
-    alloc_mms(Additive(V), solver=solver)
+alloc_mms(V::Matrix, C=nothing; solver=conf.MIP_SOLVER) =
+    alloc_mms(Additive(V), C, solver=solver)
 
 
 # Extract the allocation at the end of the pipeline.
@@ -302,7 +317,7 @@ wt_gini(i, n) = 2(n - i) + 1
 
 
 """
-    alloc_mgg(V; wt=wt_gini, solver=conf.MIP_SOLVER)
+    alloc_mgg(V[, C]; wt=wt_gini, solver=conf.MIP_SOLVER)
 
 Minimizes the generalized Gini social-evaluation function, or other ordered
 weighted averages of agent utilities, where the weight is based on utility
@@ -315,10 +330,11 @@ Problems](https://pdfs.semanticscholar.org/c6ae/41213e5744ec0a1cca632155a42a46f8
 The return value is a named tuple with the field `alloc`, the `Allocation`
 that has been produced.
 """
-function alloc_mgg(V; wt=wt_gini, solver=conf.MIP_SOLVER)
+function alloc_mgg(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mgg(wt) |>
+    enforce(C) |>
     solve_mip |>
     mgg_result
 

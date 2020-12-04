@@ -8,6 +8,7 @@ export
     alloc_mms,
     alloc_mnw,
     bundle,
+    check,
     check_ef,
     check_ef1,
     check_efx,
