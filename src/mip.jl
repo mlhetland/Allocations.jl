@@ -179,6 +179,20 @@ end
 enforce(C::Nothing) = identity
 
 
+# Enforce cardinality constraints on the JuMP model.
+enforce(C::Counts) = function(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    for S in C, i in agents(V)
+        @constraint(model, sum(A[i, g] for g in S) <= S.threshold)
+    end
+
+    return ctx
+
+end
+
+
 # Actual allocation methods
 
 

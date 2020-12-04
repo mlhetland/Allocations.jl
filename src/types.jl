@@ -330,3 +330,57 @@ assumed to consist of a `Valuation` object and at most one `Constraint`
 object, embodying any and all constraints placed on feasible solutions.
 """
 abstract type Constraint end
+
+
+"""
+    mutable struct Category
+
+One of the cateogy in a `Counts` constraint, from which each agent can hold at
+most a given number of items. The category supports iteration (over its
+members), and the threashold is available through the `threshold` accessor.
+"""
+mutable struct Category
+    members::Set{Int}
+    threshold::Int
+end
+
+
+iterate(c::Category, args...) = iterate(c.members, args...)
+
+
+"""
+    threshold(c::Category)
+
+The maximum number of items any agent can receive from the given category, as
+part of a `Counts` constraint.
+"""
+threshold(c::Category) = c.threshold
+
+
+"""
+    struct Counts <: Constraint
+
+The *cardinality constraints* introduced by Biswas and Barman in their 2018
+paper [Fair Division Under Cardinality
+Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
+constraint consisting of several `Category` objects, available through
+indexing or iteration. Any agent may hold at most a given number of items from
+any given category.
+"""
+struct Counts <: Constraint
+    categories::Vector{Category}
+end
+
+
+"""
+    Counts(args::Pair...)
+
+Create a `Counts` where each pairs `x => k` becomes a category with members
+`Set(x)` and threshold `k`.
+"""
+Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
+
+
+getindex(C::Counts, i) = C.categories[i]
+length(C::Counts) = length(C.categories)
+iterate(C::Counts, args...) = iterate(C.categories, args...)

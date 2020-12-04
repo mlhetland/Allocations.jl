@@ -4,6 +4,9 @@ using Test
 # For matching test:
 using Allocations: bipartite_matching
 
+# For Counts test:
+using Allocations: Category
+
 function runtests()
 
 @testset "Types" begin
@@ -98,6 +101,22 @@ function runtests()
 
     end
 
+    @testset "Counts" begin
+
+        C = Counts(
+            [1, 2, 3] => 2,
+            [4, 5, 6] => 1
+        )
+
+        @test C isa Counts
+        for c in C
+            @test c isa Category
+        end
+
+        @test C[2].threshold == 1
+
+    end
+
 end
 
 @testset "Utilities" begin
@@ -167,6 +186,29 @@ end
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
         @test res.mnw ≈ 3 * (4 + 3)
+
+    end
+
+    @testset "MNW with constraints" begin
+
+        C = Counts(
+            [1, 2, 3, 4]     => 3,
+            [5, 6, 7]        => 2,
+            [8, 9, 10]       => 2,
+            [11, 12, 13, 14] => 3,
+            [15]             => 1
+        )
+
+        res = alloc_mnw(V)
+        resc = alloc_mnw(V, C)
+
+        @test check(V, resc.alloc, C)
+
+        @test resc.alloc isa Allocation
+        @test resc.mnw > 0
+
+        # Adding constraint can't improve objective.
+        @test resc.mnw <= res.mnw
 
     end
 

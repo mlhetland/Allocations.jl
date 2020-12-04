@@ -59,3 +59,27 @@ Check that the allocation `A` obeys the `Constraint` `C`, given the valuation
 `V`.
 """
 function check end
+
+
+"""
+    check(V, A, C::Counts)
+
+Check whether the allocation `A` respects the cardinality constraints `C`.
+"""
+function check(V, A, C::Counts)
+
+    for c in C
+
+        counts = zeros(Int, na(A))
+
+        for g in c, i in owners(A, g)
+            counts[i] += 1
+        end
+
+        maximum(counts) <= c.threshold || return false
+
+    end
+
+    return true
+
+end

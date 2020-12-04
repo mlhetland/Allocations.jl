@@ -1,6 +1,7 @@
 export
     Additive,
     Allocation,
+    Counts,
     Valuation,
     agents,
     alloc_mgg,
@@ -8,6 +9,8 @@ export
     alloc_mms,
     alloc_mnw,
     bundle,
+    category!,
+    category,
     check,
     check_ef,
     check_ef1,
