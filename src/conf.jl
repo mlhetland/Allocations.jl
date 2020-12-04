@@ -1,3 +1,7 @@
+mutable struct Conf
+    MIP_SOLVER
+end
+
 """
     conf
 
@@ -15,10 +19,6 @@ the JuMP function `optimizer_with_attributes`) or by passing the solver
 directly to the appropriate allocation functions.
 """
 const conf = Conf(nothing)
-
-mutable struct Conf
-    MIP_SOLVER
-end
 
 function __init__()
     conf.MIP_SOLVER = optimizer_with_attributes(
