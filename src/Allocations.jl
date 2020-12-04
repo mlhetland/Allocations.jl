@@ -56,6 +56,18 @@ welfare (MNW) allocation as follows:
       1 => {2, 4}
       2 => {1, 3}
 
+Several allocation functions use mixed-integer linear programming via
+[JuMP](https://jump.dev). Depending on the choice of MIP solver, solving even
+moderately-sized instances may take a significant amount of time. Choosing a
+different solver (from the default `Cbc.Optimizer`) may speed things up
+considerably. For example, with the appropriate license, one could use use
+[Gurobi](https://www.gurobi.com) as follows:
+
+    Allocations.conf.MIP_SOLVER = Gurobi.Optimizer
+
+It is also possible to supply the `Optimizer` (or other optimizer factories,
+e.g., constructed using `optimizer_with_attributes`) as the `solver` keyword
+argument to the relevant allocation functions.
 """
 module Allocations
 
@@ -64,26 +76,8 @@ using JuMP: Model, optimizer_with_attributes, objective_value, @variable,
             @objective, @constraint, fix, optimize!, termination_status, MOI
 using Cbc
 
-"""
-    MIP_SOLVER
-
-The (factory for) the JuMP optimizer to be used (by default) for mixed-integer
-programming. Initially set to `Cbc.Optimizer`, with a `logLevel` of `0`. This
-can be overridden either by setting `MIP_SOLVER` to another value (e.g., using
-the JuMP function `optimizer_with_attributes`) or by passing it directly to
-the appropriate allocation functions.
-"""
-MIP_SOLVER = nothing
-# Not using the const Ref trick to avoid global variables, as we'll need to
-# use type Any anyway.
-
-function __init__()
-    global MIP_SOLVER = optimizer_with_attributes(
-        Cbc.Optimizer, "logLevel" => 0
-    )
-end
-
 include("exports.jl")
+include("conf.jl")
 include("types.jl")
 include("util.jl")
 include("checks.jl")

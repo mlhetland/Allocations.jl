@@ -2,7 +2,7 @@
 # solver elsewhere, anyway). `X` should be a boolean matrix, where `X[i, j]`
 # indicates an edge between `i` and `j`. The `solver` argument should be JuMP
 # optimizer factory.
-function bipartite_matching(X, solver=MIP_SOLVER)
+function bipartite_matching(X, solver=conf.MIP_SOLVER)
 
     model = Model(solver)
 

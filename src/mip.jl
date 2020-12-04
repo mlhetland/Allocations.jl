@@ -186,7 +186,7 @@ end
 
 
 """
-    alloc_mnw(V; solver=MIP_SOLVER)
+    alloc_mnw(V; solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
 valuation `V` The solution is found using the approach of Caragiannis et al.
@@ -206,7 +206,7 @@ halted.
 The return value is a named tuple with fields `alloc` (the `Allocation`) and
 `mnw` (the achieved Nash welfare for the agents with nonzero utility).
 """
-function alloc_mnw(V; solver=MIP_SOLVER)
+function alloc_mnw(V; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mnw |>
@@ -223,13 +223,13 @@ end
 
 
 """
-    alloc_mm(V; solver=MIP_SOLVER)
+    alloc_mm(V; solver=conf.MIP_SOLVER)
 
 Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
 bundle value is maximized. The return value is a named tuple with fields
 `alloc` (the `Allocation`) and `mm` (the lowest agent utility).
 """
-function alloc_mm(V; solver=MIP_SOLVER)
+function alloc_mm(V; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mm |>
@@ -240,7 +240,7 @@ end
 
 
 """
-    alloc_mms(V; solver=MIP_SOLVER)
+    alloc_mms(V; solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -250,7 +250,7 @@ Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
 with fields `alloc` (the `Allocation`) and `alpha`, the lowest fraction of MMS
 that any agent achieves (is at least 1 exactly when the allocation is MMS).
 """
-function alloc_mms(V::Additive; solver=MIP_SOLVER)
+function alloc_mms(V::Additive; solver=conf.MIP_SOLVER)
 
     N, M = agents(V), items(V)
 
@@ -279,7 +279,7 @@ function alloc_mms(V::Additive; solver=MIP_SOLVER)
 end
 
 
-alloc_mms(V::Matrix; solver=MIP_SOLVER) =
+alloc_mms(V::Matrix; solver=conf.MIP_SOLVER) =
     alloc_mms(Additive(V), solver=solver)
 
 
@@ -302,7 +302,7 @@ wt_gini(i, n) = 2(n - i) + 1
 
 
 """
-    alloc_mgg(V; wt=wt_gini, solver=MIP_SOLVER)
+    alloc_mgg(V; wt=wt_gini, solver=conf.MIP_SOLVER)
 
 Minimizes the generalized Gini social-evaluation function, or other ordered
 weighted averages of agent utilities, where the weight is based on utility
@@ -315,7 +315,7 @@ Problems](https://pdfs.semanticscholar.org/c6ae/41213e5744ec0a1cca632155a42a46f8
 The return value is a named tuple with the field `alloc`, the `Allocation`
 that has been produced.
 """
-function alloc_mgg(V; wt=wt_gini, solver=MIP_SOLVER)
+function alloc_mgg(V; wt=wt_gini, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mgg(wt) |>
