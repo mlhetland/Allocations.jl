@@ -83,5 +83,7 @@ include("util.jl")
 include("checks.jl")
 include("measures.jl")
 include("mip.jl")
+include("reductions.jl")
+include("algorithms.jl")
 
 end # module

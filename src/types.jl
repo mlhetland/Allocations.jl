@@ -1,4 +1,4 @@
-import Base: getindex, iterate, length, show, summary
+import Base: firstindex, getindex, in, iterate, lastindex, length, show, summary
 
 
 ##############################################################################
@@ -319,6 +319,15 @@ Set the value of item `j`, according to agent `i`, to `v`.
 value!(V::Additive, i, j, v) = V.values[i, j] = v
 
 
+"""
+    normalize(V)
+
+Scale the values of V such that v_i(M)     = n for all agents i.
+"""
+normalize(V::Additive) =
+    Additive(V.values .* [na(V) / value(V, i, items(V)) for i in agents(V)])
+
+
 ## Constraints ###############################################################
 
 
@@ -346,6 +355,7 @@ end
 
 
 iterate(c::Category, args...) = iterate(c.members, args...)
+length(c::Category) = length(c.members)
 
 
 """
@@ -384,3 +394,54 @@ Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
 getindex(C::Counts, i) = C.categories[i]
 length(C::Counts) = length(C.categories)
 iterate(C::Counts, args...) = iterate(C.categories, args...)
+
+
+"""
+    mutable struct OrderedCategory
+
+Used in place of `Category` when handling an ordered instance. The instance is
+assumed to be such that items in the range index:index + n_items - 1 belong to
+the given category, i.e., the items of a category occupy a continous range of
+integers.
+"""
+mutable struct OrderedCategory
+    index::Int
+    n_items::Int
+    threshold::Int
+end
+
+
+iterate(category::OrderedCategory, args...) = iterate(category.index:category.index+category.n_items-1, args...)
+in(j::Int, category::OrderedCategory) = category.index <= j && j < category.index + category.n_items
+length(category::OrderedCategory) = category.n_items
+getindex(category::OrderedCategory, i::Int) = getindex(category.index:category.index+category.n_items-1, i)
+getindex(category::OrderedCategory, v::UnitRange{Int64}) = getindex(category.index:category.index+category.n_items-1, v)
+lastindex(category::OrderedCategory) = length(category)
+
+
+"""
+    floor_n(category::OrderedCategory, n::Int)
+
+One n-th of the number of items in the category rounded down.
+"""
+floor_n(category::OrderedCategory, n::Int) = Int(floor(category.n_items/n))
+
+
+"""
+    ceil_n(category::OrderedCategory, n::Int)
+
+One n-th of the number of items in the category rounded up.
+"""
+ceil_n(category::OrderedCategory, n::Int) = Int(floor(category.n_items/n))
+
+
+"""
+    required(category::OrderedCategory, n::Int)
+
+The number of items the next agent must take in order to keep the instance
+valid, i.e., for there to be a maximum of (n - 1) * threshold remaining
+items.
+"""
+required(category::OrderedCategory, n::Int) =
+    max(category.n_items - (n - 1) * category.threshold, 0)
+
