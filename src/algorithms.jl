@@ -32,7 +32,7 @@ function subprocedure1(V::Additive, C::Array{OrderedCategory, 1})
     for i in N
         for j in M
             if value(V, i, j) >= 0.5
-                bundle = union(Set{Int}(j), [category[end - required(category, n) - (j in category) + 1:end] for category in C]...)
+                bundle = union(Set{Int}(j), [category[end - required(category, n) + (j in category) + 1:end] for category in C]...)
                 V, C, converter = reduce_instance(V, C, i, bundle)
                 return converter(subprocedure1(V, C))
             end
