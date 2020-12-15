@@ -22,7 +22,13 @@ no such agent-item pairs, `subprocedure2` is called.
 function subprocedure1(V::Additive, C::Array{OrderedCategory, 1})
     N, n, M = agents(V), na(V), items(V)
 
-    if n == 1 return [Set(M)] end
+    if n == 1
+        allocation = Allocation(1, ni(V))
+        for j in M
+            give!(allocation, 1, j)
+        end
+        return allocation
+    end
 
     V = normalize(V)
 
@@ -59,7 +65,13 @@ run out of items to add and have no agent value the bundle at least 1/2.
 function subprocedure2(V::Additive, C::Array{OrderedCategory, 1})
     N, n = agents(V), na(V)
 
-    if n == 1 return [Set(items(V))] end
+    if n == 1
+        allocation = Allocation(1, ni(V))
+        for j in items(V)
+            give!(allocation, 1, j)
+        end
+        return allocation
+    end
 
     # Fill the bundle with the floor(k_h/n) least valuable items
     bundle = union(Set{Int}(), [category[end - floor_n(category, n) + 1:end] for category in C]...)

@@ -47,9 +47,20 @@ end
 Convert an allocation in a reduced instance to one in the original instance,
 including giving the removed bundle to the removed agent.
 """
-function revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Array{Set{Int}, 1})
-    allocation = Set{Int}[Set{Int}(translate[item] for item in bundle) for bundle in allocation]
-    insert!(allocation, agent, removedbundle)
+function revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Allocation)
+    newallocation = Allocation(na(allocation) + 1, ni(allocation) + length(removedbundle))
+    for i in 1:na(allocation)
+        new_i = i + (i >= agent)
+        for j in bundle(allocation, i)
+            give!(newallocation, new_i, translate[j])
+        end
+    end
+
+    for j in removedbundle
+        give!(newallocation, agent, j)
+    end
+
+    return newallocation
 end
 
 
@@ -86,27 +97,19 @@ end
 
 Convert an allocation in the ordered instance to one in the original instance.
 """
-function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Array{OrderedCategory, 1}, alloc::Array{Set{Int}})
-    bundles = [Set{Int}() for i in agents(V)]
-    translate = zeros(Int, ni(V)) 
-
-    # Create reverse lookup for items and agents
-    for (i, bundle) in enumerate(alloc)
-        for j in bundle
-            translate[j] = i
-        end
-    end
+function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Array{OrderedCategory, 1}, allocation::Allocation)
+    newallocation = Allocation(na(allocation), ni(allocation))
  
     for (orig, new) in zip(C, Co)
         items = copy(orig.members)
         for j in new 
-            i = translate[j]
+            i = owner(allocation, j)
             item = maximum((el) -> (value(V, i, el), el), items)
-            push!(bundles[i], item[2])
+            give!(newallocation, i, item[2])
             items = setdiff(items, item[2])
         end
     end
 
-    return bundles
+    return newallocation
 end
 
