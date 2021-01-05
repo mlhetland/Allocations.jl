@@ -284,8 +284,9 @@ guarantee*, where each agent gets a bundle it weakly prefers to its maximin
 share (introduced by Budish, in his 2011 paper [The Combinatorial Assignment
 Problem: Approximate Competitive Equilibrium from Equal
 Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
-with fields `alloc` (the `Allocation`) and `alpha`, the lowest fraction of MMS
-that any agent achieves (is at least 1 exactly when the allocation is MMS).
+with fields `alloc` (the `Allocation`), `mmss`, the individual MMS values for
+the instance, and `alpha`, the lowest fraction of MMS that any agent achieves
+(is at least 1 exactly when the allocation is MMS).
 """
 function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
@@ -293,11 +294,13 @@ function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
     X = zeros(na(V), ni(V))
 
+    # individual MMS values -- also included in the result
+    mmss = [mms(V, i, C, solver=solver) for i in N]
+
     for i in N
 
-        mms_i = mms(V, i, C, solver=solver)
         for g in M
-            X[i, g] = value(V, i, g) / mms_i
+            X[i, g] = value(V, i, g) / mmss[i]
         end
 
     end
@@ -305,7 +308,7 @@ function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
     # maximin with scaled values is as close to the MMS guarantee as possible
     res = alloc_mm(Additive(X), C, solver=solver)
 
-    return (alloc=res.alloc, alpha=res.mm)
+    return (alloc=res.alloc, alpha=res.mm, mmss=mmss)
 
 end
 
