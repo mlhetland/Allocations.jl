@@ -15,6 +15,7 @@ export
     deny!,
     give!,
     items,
+    mms,
     na,
     nash_welfare,
     ni,

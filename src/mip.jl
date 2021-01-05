@@ -255,6 +255,28 @@ end
 
 
 """
+    mms(V, i[, C]; solver=conf.MIP_SOLVER)
+
+Determine the maximin share of agent `i`, i.e., the bundle value she is
+guaranteed to attain if she partitions the items and the other agents choose
+their bundles. Useful, e.g., as a point of reference when determining the
+empirical approximation ratios of approximate MMS allocation algorithms. Also
+used as a subroutine in `alloc_mms`.
+"""
+function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
+
+    # Let all agents be clones of agent i
+    Vi = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
+
+    # maximin in this scenario is MMS for agent i
+    res = alloc_mm(Vi, C, solver=solver)
+
+    return res.mm
+
+end
+
+
+"""
     alloc_mms(V[, C]; solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
@@ -273,15 +295,9 @@ function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
     for i in N
 
-        # Let all agents be clones of agent i
-        Vi = Additive([value(V, i, g) for _ in N, g in M])
-
-        # maximin in this scenario is MMS for agent i
-        res = alloc_mm(Vi, C, solver=solver)
-
-        # Scale agent i's values by agent i's MMS
+        mms_i = mms(V, i, C, solver=solver)
         for g in M
-            X[i, g] = value(V, i, g) / res.mm
+            X[i, g] = value(V, i, g) / mms_i
         end
 
     end
