@@ -411,12 +411,12 @@ mutable struct OrderedCategory
 end
 
 
-iterate(category::OrderedCategory, args...) = iterate(category.index:category.index+category.n_items-1, args...)
-in(j::Int, category::OrderedCategory) = category.index <= j && j < category.index + category.n_items
-length(category::OrderedCategory) = category.n_items
-getindex(category::OrderedCategory, i::Int) = getindex(category.index:category.index+category.n_items-1, i)
-getindex(category::OrderedCategory, v::UnitRange{Int64}) = getindex(category.index:category.index+category.n_items-1, v)
-lastindex(category::OrderedCategory) = length(category)
+iterate(c::OrderedCategory, args...) = iterate(c.index:c.index + c.n_items - 1, args...)
+in(j, c::OrderedCategory) = c.index <= j < c.index + c.n_items
+length(c::OrderedCategory) = c.n_items
+getindex(c::OrderedCategory, i::Int) = getindex(c.index:category.index + c.n_items - 1, i)
+getindex(c::OrderedCategory, v::UnitRange{Int64}) = getindex(c.index:c.index + c.n_items - 1, v)
+lastindex(c::OrderedCategory) = length(c)
 
 
 """

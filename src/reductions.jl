@@ -1,5 +1,5 @@
 """
-    reduceinstance(V::Additive, C::Array{OrderedCategory,1}, agent::Int, removedbundle::Set{Int})
+    reduce_instance(V::Additive, C::Vector{OrderedCategory}, agent, removedbundle)
 
 Reduce the instance given by the pair (V, C) to a new instance by giving the
 supplied agent the supplied bundle. Returns an additive weight matrix, a set of
@@ -7,7 +7,7 @@ ordered categories for the new reduced instance and a function that turns an
 allocation in the reduced instance into one for the original instance,
 including giving the supplied agent the supplied bundle.
 """
-function reduce_instance(V::Additive, C::Array{OrderedCategory,1}, agent::Int, removedbundle::Set{Int})
+function reduce_instance(V::Additive, C::Vector{OrderedCategory}, agent::Int, removedbundle::Set{Int})
     N, M = agents(V), items(V)
     n, m = na(V), ni(V)
 
@@ -42,12 +42,12 @@ end
 
 
 """
-    revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Array{Set{Int}, 1})
+    revert_instance(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, allocation::Array{Set{Int}, 1})
 
 Convert an allocation for a reduced instance to one for the original instance,
 including giving the removed bundle to the removed agent.
 """
-function revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Allocation)
+function revert_instance(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, allocation::Allocation)
     newallocation = Allocation(na(allocation) + 1, ni(allocation) + length(removedbundle))
     for i in 1:na(allocation)
         new_i = i + (i >= agent)
@@ -69,8 +69,8 @@ end
 
 Create an ordered instance for the given weights and categories. The items are
 reorded such that each category has a continous range of indices for its items.
-Returns a new additive weight matrix, an array of `OrderedCategory` objects and
-a function that converts an allocation in the ordered instance to one in the
+Returns new additive valutations, an array of `OrderedCategory` objects and
+a function that converts an allocation in the ordered instance to one for the
 original instance.
 """
 function create_ordered_instance(V::Additive, C::Counts)
@@ -88,16 +88,16 @@ function create_ordered_instance(V::Additive, C::Counts)
         itemcounter += length(category)
     end
 
-    return Additive(Vo), Co, (alloc) -> revert_to_non_ordered_instance(V, C, Co, alloc)
+    return Additive(Vo), Co, (A) -> revert_to_non_ordered_instance(V, C, Co, A)
 end
 
 
 """
-    revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Array{OrderedCategory, 1}, alloc::Array{Set{Int}})
+    revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Vector{OrderedCategory}, alloc::Array{Set{Int}})
 
-Convert an allocation in the ordered instance to one in the original instance.
+Convert an allocation for the ordered instance to one for the original instance.
 """
-function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Array{OrderedCategory, 1}, allocation::Allocation)
+function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Vector{OrderedCategory}, allocation::Allocation)
     newallocation = Allocation(na(allocation), ni(allocation))
  
     for (orig, new) in zip(C, Co)
