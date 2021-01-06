@@ -191,6 +191,7 @@ end
         res = alloc_mms([3 1 2; 4 4 5])
 
         @test res.alpha ≈ 1.0
+        @test res.mmss ≈ [3.0, 5.0]
 
     end
 
