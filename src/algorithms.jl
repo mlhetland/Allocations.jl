@@ -1,8 +1,7 @@
 """
     half_mms(V::Additive, C::Counts)
 
-Find an 1/2-approximate MMS allocation that fulfill the restrictions placed by
-C.
+Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
 """
 function half_mms(V::Additive, C::Counts)
     V, C, convert = create_ordered_instance(V, C)
@@ -51,13 +50,13 @@ end
 
 """
 The second part of `half_mms`. Takes a normalized ordered instance without any
-items worth greater than or equal to 1/2 to any agent and produces a valid
+items worth 1/2 or more to any agent and produces a valid
 1/2-MMS allocation. The algorithm creates a bundle of the ⌊length(category)/n⌋
-lowest valued items in each category. Repeatedly, it converts each of these to
-the highest valued remaining item in the category until it either runs out of
+lowest-valued items in each category. Repeatedly, it converts each of these to
+the highest-valued remaining item in the category until it either runs out of
 items to convert or an agent values the bundle at least 1/2. If the procedure
-runs out of items to convert, it in order adds the highest valued remaining
-item in each category to have ⌈length(category)/n⌉ items from each category.
+runs out of items to convert, it adds the highest-valued remaining
+item in each category, in order, to get ⌈length(category)/n⌉ items from each category.
 After each such item is added, the value is again checked for each agent. As
 long as the initial ordered instance was normalized, the procedure will never
 run out of items to add and have no agent value the bundle at least 1/2.
@@ -81,7 +80,7 @@ function subprocedure2(V::Additive, C::Array{OrderedCategory, 1})
     category, converted = popfirst!(categories), 0
     while all(i -> value(V, i, bundle) < 0.5, N)
         if converted == floor_n(category, n) 
-            if isempty(categories) break end
+            isempty(categories) && break
 
             category, converted = popfirst!(categories), 0
             continue
@@ -107,4 +106,3 @@ function subprocedure2(V::Additive, C::Array{OrderedCategory, 1})
     V, C, converter = reduce_instance(V, C, findfirst(i -> value(V, i, bundle) >= 0.5, N), bundle)
     return converter(subprocedure2(V, C))
 end
-

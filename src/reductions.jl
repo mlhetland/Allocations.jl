@@ -44,7 +44,7 @@ end
 """
     revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Array{Set{Int}, 1})
 
-Convert an allocation in a reduced instance to one in the original instance,
+Convert an allocation for a reduced instance to one for the original instance,
 including giving the removed bundle to the removed agent.
 """
 function revert_instance(translate::Array{Int, 1}, agent::Int, removedbundle::Set{Int}, allocation::Allocation)
@@ -112,4 +112,3 @@ function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Array{Ordere
 
     return newallocation
 end
-

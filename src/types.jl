@@ -322,7 +322,7 @@ value!(V::Additive, i, j, v) = V.values[i, j] = v
 """
     normalize(V)
 
-Scale the values of V such that v_i(M)     = n for all agents i.
+Scale the values of `V` such that $v_i(M) = n$ for all agents $i$.
 """
 normalize(V::Additive) =
     Additive(V.values .* [na(V) / value(V, i, items(V)) for i in agents(V)])
@@ -400,8 +400,8 @@ iterate(C::Counts, args...) = iterate(C.categories, args...)
     mutable struct OrderedCategory
 
 Used in place of `Category` when handling an ordered instance. The instance is
-assumed to be such that items in the range index:index + n_items - 1 belong to
-the given category, i.e., the items of a category occupy a continous range of
+assumed to be such that items in the range `index:index + n_items - 1` belong to
+the given category, i.e., the items of a category occupy a contiguous range of
 integers.
 """
 mutable struct OrderedCategory
@@ -420,28 +420,26 @@ lastindex(category::OrderedCategory) = length(category)
 
 
 """
-    floor_n(category::OrderedCategory, n::Int)
+    floor_n(c::OrderedCategory, n)
 
-One n-th of the number of items in the category rounded down.
+One `n`th of the number of items in the category, rounded down.
 """
-floor_n(category::OrderedCategory, n::Int) = Int(floor(category.n_items/n))
-
-
-"""
-    ceil_n(category::OrderedCategory, n::Int)
-
-One n-th of the number of items in the category rounded up.
-"""
-ceil_n(category::OrderedCategory, n::Int) = Int(floor(category.n_items/n))
+floor_n(c::OrderedCategory, n) = floor(Int, c.n_items/n)
 
 
 """
-    required(category::OrderedCategory, n::Int)
+    ceil_n(c::OrderedCategory, n)
+
+One `n`th of the number of items in the category, rounded up.
+"""
+ceil_n(c::OrderedCategory, n) = floor(Int, c.n_items/n)
+
+
+"""
+    required(c::OrderedCategory, n)
 
 The number of items the next agent must take in order to keep the instance
-valid, i.e., for there to be a maximum of (n - 1) * threshold remaining
+valid, i.e., for there to be a maximum of `(n - 1) * threshold` remaining
 items.
 """
-required(category::OrderedCategory, n::Int) =
-    max(category.n_items - (n - 1) * category.threshold, 0)
-
+required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
