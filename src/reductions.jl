@@ -2,12 +2,12 @@
     reduce(V::Additive, C::Vector{OrderedCategory}, agent, removedbundle)
 
 Reduce the instance given by the pair (V, C) to a new instance by giving the
-supplied agent the supplied bundle. Returns an additive weight matrix, a set of
+supplied agent the supplied bundle. Returns an additive valuation, a set of
 ordered categories for the new reduced instance and a function that turns an
 allocation in the reduced instance into one for the original instance,
 including giving the supplied agent the supplied bundle.
 """
-function reduce(V::Additive, C::Vector{OrderedCategory}, agent::Int, removedbundle::Set{Int})
+function reduce(V::Additive, C::Vector{OrderedCategory}, agent, removedbundle)
     N, M = agents(V), items(V)
     n, m = na(V), ni(V)
 
@@ -42,12 +42,12 @@ end
 
 
 """
-    revert(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, A::Allocation)
+    revert(translate::Vector{Int}, agent, removedbundle, A::Allocation)
 
 Convert an allocation for a reduced instance to one for the original instance,
 including giving the removed bundle to the removed agent.
 """
-function revert(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, A::Allocation)
+function revert(translate::Vector{Int}, agent, removedbundle, A::Allocation)
     A′ = Allocation(na(A) + 1, ni(A) + length(removedbundle))
     for i in 1:na(A)
         new_i = i + (i >= agent)
@@ -67,7 +67,7 @@ end
 """
     reduce(V::Additive, C::Vector{OrderedCategory}, α)
 
-Reduces an ordered instance by normalizing the values and giving any agent that
+Reduce an ordered instance by normalizing the values and giving any agent that
 value an individual item greater than or equal to α the item and any low value
 items required to reduce to a valid instance. This reduction is performed
 recursively until no more such items exist. The reduction does not decrease the
