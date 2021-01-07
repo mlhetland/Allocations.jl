@@ -22,11 +22,11 @@ function alloc_half_mms_big_item_reduction(V::Additive, C::Vector{OrderedCategor
     N, n, M = agents(V), na(V), items(V)
 
     if n == 1
-        allocation = Allocation(1, ni(V))
+        A = Allocation(1, ni(V))
         for j in M
-            give!(allocation, 1, j)
+            give!(A, 1, j)
         end
-        return allocation
+        return A
     end
 
     V = normalize(V)
@@ -36,7 +36,7 @@ function alloc_half_mms_big_item_reduction(V::Additive, C::Vector{OrderedCategor
     # that must be given to the agent to guarantee a valid instance.
     for i in N, j in M
 		if value(V, i, j) >= 0.5
-			bundle = union(Set{Int}(j), [category[end - required(category, n) + (j in category) + 1:end] for category in C]...)
+			bundle = union(Set{Int}(j), [c[end - required(c, n) + (j in c) + 1:end] for c in C]...)
 			V, C, convert = reduce_instance(V, C, i, bundle)
 			return convert(alloc_half_mms_big_item_reduction(V, C))
 		end
@@ -65,15 +65,15 @@ function alloc_half_mms_bag_filling(V::Additive, C::Vector{OrderedCategory})
     N, n = agents(V), na(V)
 
     if n == 1
-        allocation = Allocation(1, ni(V))
+        A = Allocation(1, ni(V))
         for j in items(V)
-            give!(allocation, 1, j)
+            give!(A, 1, j)
         end
-        return allocation
+        return A 
     end
 
     # Fill the bundle with the floor(k_h/n) least valuable items
-    bundle = union(Set{Int}(), [category[end - floor_n(category, n) + 1:end] for category in C]...)
+    bundle = union(Set{Int}(), [c[end - floor_n(c, n) + 1:end] for c in C]...)
 
     # Convert lower value items to higher value items
     categories = Iterators.Stateful(C)

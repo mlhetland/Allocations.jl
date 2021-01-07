@@ -322,7 +322,7 @@ value!(V::Additive, i, j, v) = V.values[i, j] = v
 """
     normalize(V)
 
-Scale the values of `V` such that $v_i(M) = n$ for all agents $i$.
+Scale the values of `V` such that ``v_i(M) = n`` for all agents ``i``.
 """
 normalize(V::Additive) =
     Additive(V.values .* [na(V) / value(V, i, items(V)) for i in agents(V)])
@@ -414,7 +414,7 @@ end
 iterate(c::OrderedCategory, args...) = iterate(c.index:c.index + c.n_items - 1, args...)
 in(j, c::OrderedCategory) = c.index <= j < c.index + c.n_items
 length(c::OrderedCategory) = c.n_items
-getindex(c::OrderedCategory, i::Int) = getindex(c.index:category.index + c.n_items - 1, i)
+getindex(c::OrderedCategory, i::Int) = getindex(c.index:c.index + c.n_items - 1, i)
 getindex(c::OrderedCategory, v::UnitRange{Int64}) = getindex(c.index:c.index + c.n_items - 1, v)
 lastindex(c::OrderedCategory) = length(c)
 

@@ -47,20 +47,20 @@ end
 Convert an allocation for a reduced instance to one for the original instance,
 including giving the removed bundle to the removed agent.
 """
-function revert_instance(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, allocation::Allocation)
-    newallocation = Allocation(na(allocation) + 1, ni(allocation) + length(removedbundle))
-    for i in 1:na(allocation)
+function revert_instance(translate::Vector{Int}, agent::Int, removedbundle::Set{Int}, A::Allocation)
+    A′ = Allocation(na(A) + 1, ni(A) + length(removedbundle))
+    for i in 1:na(A)
         new_i = i + (i >= agent)
-        for j in bundle(allocation, i)
-            give!(newallocation, new_i, translate[j])
+        for j in bundle(A, i)
+            give!(A′, new_i, translate[j])
         end
     end
 
     for j in removedbundle
-        give!(newallocation, agent, j)
+        give!(A′, agent, j)
     end
 
-    return newallocation
+    return A′
 end
 
 
@@ -97,18 +97,18 @@ end
 
 Convert an allocation for the ordered instance to one for the original instance.
 """
-function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Vector{OrderedCategory}, allocation::Allocation)
-    newallocation = Allocation(na(allocation), ni(allocation))
+function revert_to_non_ordered_instance(V::Additive, C::Counts, Co::Vector{OrderedCategory}, A::Allocation)
+    A′ = Allocation(na(A), ni(A))
  
     for (orig, new) in zip(C, Co)
         items = copy(orig.members)
         for j in new 
-            i = owner(allocation, j)
+            i = owner(A, j)
             item = maximum((el) -> (value(V, i, el), el), items)
-            give!(newallocation, i, item[2])
+            give!(A′, i, item[2])
             items = setdiff(items, item[2])
         end
     end
 
-    return newallocation
+    return A′
 end
