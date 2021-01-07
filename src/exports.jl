@@ -26,6 +26,7 @@ export
     nash_welfare,
     ni,
     normalize,
+    owner,
     required,
     threshold,
     value!,

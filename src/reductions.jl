@@ -100,7 +100,7 @@ function reduce(V::Additive, C::Vector{OrderedCategory}, α::Float64)
 
 			# Recursive application, as the removed items may cause items worth
 			# less than α to be worth α or more after a new normalization.
-			V, C, prev_convert = reduce(V, C, alpha)
+			V, C, prev_convert = reduce(V, C, α)
 
 			# The converters have to be applied in reverse.
 			return V, C, (A) -> convert(prev_convert(A))

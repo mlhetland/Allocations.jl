@@ -250,6 +250,45 @@ end
 
 end
 
+@testset "MMS Approximation" begin
+
+	n, m = 4, 12
+    X = rand(1:10, n, m)
+    V = Additive(X)
+
+	@testset "1/2-approximate MMS with cardinality constraints" begin
+
+        C = Counts(
+            [1, 3, 7, 9]          => 1,
+            [4, 6, 8, 10, 11, 12] => 3,
+            [2, 5]                => 2,
+        )
+
+        A = alloc_half_mms(V, C)
+
+        @test A isa Allocation
+
+        # Test that all items are allocated properly
+        for g in items(V)
+            @test owner(A, g) isa Int
+        end
+
+        # The allocation must not break the cardinality constraints
+        for i in agents(V), c in C
+            @test sum(owner(A, g) == i for g in c) <= threshold(c)
+        end
+
+        for i in agents(V)
+            Vi = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
+            res = alloc_mm(Vi, C)
+
+            @test value(V, i, bundle(A, i)) >= 0.5 * res.mm
+        end
+
+    end
+
+end
+
 return nothing
 
 end
