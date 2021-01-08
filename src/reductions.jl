@@ -89,25 +89,25 @@ function reduce(V::Additive, C::Vector{OrderedCategory}, α::Float64)
     V = normalize(V)
 
     # Find any agent who values a single item at least α and give that item to
-	# the agent along with the least valuable items in the remaining bundles
+    # the agent along with the least valuable items in the remaining bundles
     # that must be given to the agent to guarantee a valid instance.
     for i in N, j in M
-		if value(V, i, j) >= α
-			bundle = union(
-				Set{Int}(j),
-				[c[end - required(c, n) + (j in c) + 1:end] for c in C]...)
-			V, C, convert = reduce(V, C, i, bundle)
+        if value(V, i, j) >= α
+            bundle = union(
+                Set{Int}(j),
+                [c[end - required(c, n) + (j in c) + 1:end] for c in C]...)
+            V, C, convert = reduce(V, C, i, bundle)
 
-			# Recursive application, as the removed items may cause items worth
-			# less than α to be worth α or more after a new normalization.
-			V, C, prev_convert = reduce(V, C, α)
+            # Recursive application, as the removed items may cause items worth
+            # less than α to be worth α or more after a new normalization.
+            V, C, prev_convert = reduce(V, C, α)
 
-			# The converters have to be applied in reverse.
-			return V, C, (A) -> convert(prev_convert(A))
-		end
+            # The converters have to be applied in reverse.
+            return V, C, (A) -> convert(prev_convert(A))
+        end
     end
 
-	return V, C, (A) -> A
+    return V, C, (A) -> A
 end
 
 

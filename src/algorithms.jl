@@ -6,17 +6,17 @@ Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
 function alloc_half_mms(V::Additive, C::Counts)
     V, C, convert = order(V, C)
 
-	# Normalize and allocate items worth 0.5 or more.
-	V, C, convert2 = reduce(V, C, 0.5)
+    # Normalize and allocate items worth 0.5 or more.
+    V, C, convert2 = reduce(V, C, 0.5)
 
-	return convert(convert2(alloc_half_mms_bag_filling(V, C)))
+    return convert(convert2(alloc_half_mms_bag_filling(V, C)))
 end
 
 
 
 
 """
-	alloc_half_mms_bag_filling(V::Additive, C::Vector{OrderedCategory})
+    alloc_half_mms_bag_filling(V::Additive, C::Vector{OrderedCategory})
 
 Create a valid 1/2-MMS allocation from a normalized ordered instance that does
 not contain any items worth 1/2 or more to any agent. The algorithm creates a

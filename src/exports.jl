@@ -5,7 +5,7 @@ export
     OrderedCategory,
     Valuation,
     agents,
-	alloc_half_mms,
+    alloc_half_mms,
     alloc_mgg,
     alloc_mm,
     alloc_mms,
