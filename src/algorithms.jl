@@ -27,37 +27,37 @@ function alloc_half_mms(V::Additive, C::Counts)
 
     while n > 1
         # Fill the bundle with the floor(k_h/n) least valuable items
-        bundle = union(Set{Int}(), [c[end - floor_n(c, n) + 1:end] for c in C]...)
+        B = union(Set{Int}(), [c[end - floor_n(c, n) + 1:end] for c in C]...)
 
         # Convert lower value items to higher value items
         categories = Iterators.Stateful(C)
-        category, converted = popfirst!(categories), 0
-        while all(i -> value(V, i, bundle) < 0.5, N)
-            if converted == floor_n(category, n)
+        c, converted = popfirst!(categories), 0
+        while all(i -> value(V, i, B) < 0.5, N)
+            if converted == floor_n(c, n)
                 isempty(categories) && break
 
-                category, converted = popfirst!(categories), 0
+                c, converted = popfirst!(categories), 0
                 continue
             end
 
             # Convert by removing the lowest valued remaining item and adding
             # the  highest valued item not in the bundle.
             converted += 1
-            setdiff!(bundle, Set(category[end-converted+1]))
-            bundle = bundle ∪ category[converted]
+            setdiff!(B, Set(c[end-converted+1]))
+            B = B ∪ c[converted]
         end
 
         # Add higher value items
         categories = Iterators.Stateful(C)
-        while all((i) -> value(V, i, bundle) < 0.5, N)
-            category = popfirst!(categories)
+        while all((i) -> value(V, i, B) < 0.5, N)
+            c = popfirst!(categories)
 
-            if length(category) % n > 0
-                bundle = bundle ∪ category[ceil_n(category, n)]
+            if length(c) % n > 0
+                B = B ∪ c[ceil_n(c, n)]
             end
         end
 
-        V, C, convert = reduce(V, C, findfirst(i -> value(V, i, bundle) >= 0.5, N), bundle)
+        V, C, convert = reduce(V, C, findfirst(i -> value(V, i, B) >= 0.5, N), B)
         push!(converts, convert)
         N, n = agents(V), na(V)
     end
@@ -67,9 +67,7 @@ function alloc_half_mms(V::Additive, C::Counts)
         A = Allocation(0, 0)
     else
         A = Allocation(1, ni(V))
-        for j in items(V)
-            give!(A, 1, j)
-        end
+        give!(A, 1, items(V))
     end
 
     # Apply all the collected converters in order

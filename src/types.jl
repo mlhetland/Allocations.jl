@@ -142,13 +142,27 @@ owner(A, g) = only(owners(A, g))
 
 
 """
-    give!(A, i, g)
+    give!(A, i, g::Int)
 
 Give agent `i` the object `g` in the `Allocation` `A`.
 """
-function give!(A, i, g)
+function give!(A, i, g::Int)
     push!(bundle(A, i), g)
     push!(owners(A, g), i)
+    return A
+end
+
+
+"""
+    give!(A, i, B)
+
+Give agent `i` the bundle `B` in the `Allocation` `A`.
+"""
+function give!(A, i, B)
+    union!(bundle(A, i), B)
+    for g in B
+        push!(owners(A, g), i)
+    end
     return A
 end
 
@@ -312,11 +326,11 @@ value_x(V::Additive, i, S) =
 
 
 """
-    value!(V::Additive, i, j::Int, v)
+    value!(V::Additive, i, g::Int, v)
 
-Set the value of item `j`, according to agent `i`, to `v`.
+Set the value of item `g`, according to agent `i`, to `v`.
 """
-value!(V::Additive, i, j, v) = V.values[i, j] = v
+value!(V::Additive, i, g, v) = V.values[i, g] = v
 
 
 """
@@ -411,12 +425,20 @@ mutable struct OrderedCategory
 end
 
 
-iterate(c::OrderedCategory, args...) = iterate(c.index:c.index + c.n_items - 1, args...)
-in(j, c::OrderedCategory) = c.index <= j < c.index + c.n_items
-length(c::OrderedCategory) = c.n_items
-getindex(c::OrderedCategory, i::Int) = getindex(c.index:c.index + c.n_items - 1, i)
-getindex(c::OrderedCategory, v::UnitRange{Int64}) = getindex(c.index:c.index + c.n_items - 1, v)
+in(g, c::OrderedCategory) = c.index <= g < c.index + c.n_items
 lastindex(c::OrderedCategory) = length(c)
+length(c::OrderedCategory) = c.n_items
+
+getindex(c::OrderedCategory, i::Int) =
+    getindex(c.index:c.index + c.n_items - 1, i)
+
+getindex(c::OrderedCategory, v::UnitRange{Int64}) =
+    getindex(c.index:c.index + c.n_items - 1, v)
+
+iterate(c::OrderedCategory, args...) = 
+    iterate(c.index:c.index + c.n_items - 1, args...)
+
+
 
 
 """

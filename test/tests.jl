@@ -32,14 +32,17 @@ function runtests()
 
             @test string(A) == "[{2}, {3, 4}, {}]"
 
-            @test 4 in bundle(A, 2)
+            give!(A, 3, [1, 5])
 
+            @test string(A) == "[{2}, {3, 4}, {1, 5}]"
+
+            @test 4 in bundle(A, 2)
 
             deny!(A, 2, 4)
 
-            @test string(A) == "[{2}, {3}, {}]"
+            @test string(A) == "[{2}, {3}, {1, 5}]"
             @test summary(A) == "Allocation with 3 agents and 5 items, " *
-                                "3 unallocated"
+                                "1 unallocated"
 
             deny!(A, 2, 3)
 
@@ -252,11 +255,11 @@ end
 
 @testset "MMS Approximation" begin
 
-	n, m = 4, 12
+    n, m = 4, 12
     X = rand(1:10, n, m)
     V = Additive(X)
 
-	@testset "1/2-approximate MMS with cardinality constraints" begin
+    @testset "1/2-approximate MMS with cardinality constraints" begin
 
         C = Counts(
             [1, 3, 7, 9]          => 1,
