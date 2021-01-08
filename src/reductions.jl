@@ -78,13 +78,7 @@ MMS guarantee.
 function reduce(V::Additive, C::Vector{OrderedCategory}, α::Float64)
     N, n, M = agents(V), na(V), items(V)
 
-    if n == 1
-        A = Allocation(1, ni(V))
-        for j in M
-            give!(A, 1, j)
-        end
-        return A
-    end
+    if n == 1 return reduce(V, C, i, M) end
 
     V = normalize(V)
 
