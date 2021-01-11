@@ -454,7 +454,7 @@ floor_n(c::OrderedCategory, n) = floor(Int, c.n_items/n)
 
 One `n`th of the number of items in the category, rounded up.
 """
-ceil_n(c::OrderedCategory, n) = floor(Int, c.n_items/n)
+ceil_n(c::OrderedCategory, n) = ceil(Int, c.n_items/n)
 
 
 """
