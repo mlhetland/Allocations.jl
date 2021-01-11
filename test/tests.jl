@@ -262,30 +262,53 @@ end
 
     @testset "1/2-approximate MMS with cardinality constraints" begin
 
+        function test_cardinality_constraints_half_mms(V, C)
+            A = alloc_half_mms(V, C)
+
+            @test A isa Allocation
+            # Test that all items are allocated properly
+            for g in items(V)
+                @test owner(A, g) isa Int
+            end
+
+            # The allocation must not break the cardinality constraints
+            for i in agents(V), c in C
+                @test sum(owner(A, g) == i for g in c) <= threshold(c)
+            end
+
+            for i in agents(V)
+                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C)
+            end
+
+        end
+
         C = Counts(
             [1, 3, 7, 9]          => 1,
             [4, 6, 8, 10, 11, 12] => 3,
             [2, 5]                => 2,
         )
 
-        A = alloc_half_mms(V, C)
+        test_cardinality_constraints_half_mms(V, C)
 
-        @test A isa Allocation
+        # The second half of the bag filling algorithm, where the floor_n(C)
+        # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
+        # used instead, does not often get ran when a random instance is
+        # created. Thus, this tests the workings of that part
 
-        # Test that all items are allocated properly
-        for g in items(V)
-            @test owner(A, g) isa Int
-        end
+        C = Counts(
+            [1, 5, 6]           => 3,
+            [2]                 => 1,
+            [3]                 => 1,
+            [4]                 => 3,
+            [7, 8, 9, 10]       => 5,
+        )
 
-        # The allocation must not break the cardinality constraints
-        for i in agents(V), c in C
-            @test sum(owner(A, g) == i for g in c) <= threshold(c)
-        end
+        V = Additive([
+            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
+            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
+        ])
 
-        for i in agents(V)
-            @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C)
-        end
-
+        test_cardinality_constraints_half_mms(V, C)
     end
 
 end
