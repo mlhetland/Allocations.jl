@@ -22,6 +22,7 @@ export
     floor_n,
     give!,
     items,
+    mms,
     na,
     nash_welfare,
     ni,
