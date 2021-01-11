@@ -283,10 +283,7 @@ end
         end
 
         for i in agents(V)
-            Vi = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
-            res = alloc_mm(Vi, C)
-
-            @test value(V, i, bundle(A, i)) >= 0.5 * res.mm
+            @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C)
         end
 
     end
