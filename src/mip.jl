@@ -60,7 +60,7 @@ function solve_mip(ctx)
 
     optimize!(ctx.model)
 
-    @assert termination_status(ctx.model) == MOI.OPTIMAL
+    @assert termination_status(ctx.model) in conf.MIP_SUCCESS
 
     V = ctx.valuation
     ctx.alloc = Allocation(na(V), ni(V))
