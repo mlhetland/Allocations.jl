@@ -18,6 +18,7 @@ export
     give!,
     graph,
     items,
+    mms,
     na,
     nash_welfare,
     ni,
