@@ -1,11 +1,14 @@
 using Allocations
 using LightGraphs
 using Test
+using Random: seed!
 
 # For matching test:
 using Allocations: bipartite_matching
 
 function runtests()
+
+    seed!(4252170447285279131)
 
 @testset "Types" begin
 
@@ -196,6 +199,24 @@ end
 
         # Adding constraint can't improve objective.
         @test resc.mnw <= res.mnw
+
+    end
+
+    @testset "EF1 with conflicts" begin
+
+        n, m = 3, 9
+        nv, ne = m, 2m
+
+        V = Additive(rand(n, m))
+
+        # Random graph
+        C = Conflicts(SimpleGraph(nv, ne))
+
+        @test check_ef1(V, alloc_ef1(V, C).alloc)
+
+        # Check that it's usable without constraints, even though we're not
+        # supplying a single-argument MIP implementation:
+        @test check_ef1(V, alloc_ef1(V, nothing).alloc)
 
     end
 

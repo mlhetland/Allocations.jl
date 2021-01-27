@@ -245,6 +245,35 @@ end
 # Actual allocation methods
 
 
+# Generic function to extract the allocation at the end of the pipeline. Many
+# allocation methods may want their own `..._result` functions, adding other
+# fields to the named tuple being returned.
+alloc_result(ctx) = (alloc=ctx.alloc,)
+
+
+"""
+    alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+
+Create an `Allocation` that is envy-free up to one item (EF1), based on the
+valuation `V`, possibly subject to the constraints given by the `Constraint`
+object `C`. The solution is found using a straightforward mixed-integer program,
+and is most suitable for constraints where no specialized algorithm exists. For
+example, without constraints, a straightforward round robin picking sequence
+yields EF1, and a similar strategy works for cardinality constraints. (It is
+still possible to use this function without constraints, by explicitly supplying
+`nothing` for the constraint argument `C`.)
+"""
+function alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+
+    init_mip(V, solver) |>
+    enforce_ef1 |>
+    enforce(C) |>
+    solve_mip |>
+    alloc_result
+
+end
+
+
 # Extract the allocation and the MNW value (excluding agents with a utility of
 # zero) at the end of the pipeline. Strictly speaking, we needn't include the
 # mnw field here, as it's a separate calculations; however, it's convenient if

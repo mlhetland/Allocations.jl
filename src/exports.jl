@@ -4,6 +4,7 @@ export
     Conflicts,
     Valuation,
     agents,
+    alloc_ef1,
     alloc_mgg,
     alloc_mm,
     alloc_mms,
