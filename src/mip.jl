@@ -262,6 +262,9 @@ example, without constraints, a straightforward round robin picking sequence
 yields EF1, and a similar strategy works for cardinality constraints. (It is
 still possible to use this function without constraints, by explicitly supplying
 `nothing` for the constraint argument `C`.)
+
+Note that for some constraints, there may not *be* an EF1 allocation, in which
+case the function will fail with an exception.
 """
 function alloc_ef1(V, C; solver=conf.MIP_SOLVER)
 
