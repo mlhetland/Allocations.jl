@@ -136,7 +136,7 @@ end
 
 # Set up objective and constraints to make sure the JuMP model produces an
 # egalitarian/maximin allocation.
-function achieve_mm(ctx)
+achieve_mm(cutoff=nothing) = function(ctx)
 
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
@@ -146,6 +146,10 @@ function achieve_mm(ctx)
 
     for i in N
         @constraint(model, v_min <= sum(A[i, g] * value(V, i, g) for g in M))
+    end
+
+    if cutoff ≢ nothing
+        @constraint(model, v_min <= cutoff)
     end
 
     @objective(model, Max, v_min)
@@ -364,16 +368,18 @@ end
 
 
 """
-    alloc_mm(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_mm(V[, C]; cutoff=nothing, solver=conf.MIP_SOLVER)
 
 Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
-bundle value is maximized. The return value is a named tuple with fields
-`alloc` (the `Allocation`) and `mm` (the lowest agent utility).
+bundle value is maximized. The `cutoff`, if any, is a level at which we are
+satisfied, i.e., any allocation where all agents attain this value is
+acceptable. The return value is a named tuple with fields `alloc` (the
+`Allocation`) and `mm` (the lowest agent utility).
 """
-function alloc_mm(V, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mm |>
+    achieve_mm(cutoff) |>
     enforce(C) |>
     solve_mip |>
     mm_result
@@ -404,7 +410,7 @@ end
 
 
 """
-    alloc_mms(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -413,9 +419,10 @@ Problem: Approximate Competitive Equilibrium from Equal
 Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
 with fields `alloc` (the `Allocation`), `mmss`, the individual MMS values for
 the instance, and `alpha`, the lowest fraction of MMS that any agent achieves
-(is at least 1 exactly when the allocation is MMS).
+(is at least 1 exactly when the allocation is MMS). If `cutoff` is set to
+`true`, this fraction is capped at 1.
 """
-function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 
     N, M = agents(V), items(V)
 
@@ -432,16 +439,19 @@ function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
     end
 
+    max_alpha = cutoff ? 1.0 : nothing
+
     # maximin with scaled values is as close to the MMS guarantee as possible
-    res = alloc_mm(Additive(X), C, solver=solver)
+    res = alloc_mm(Additive(X), C, cutoff=max_alpha, solver=solver)
+
 
     return (alloc=res.alloc, alpha=res.mm, mmss=mmss)
 
 end
 
 
-alloc_mms(V::Matrix, C=nothing; solver=conf.MIP_SOLVER) =
-    alloc_mms(Additive(V), C, solver=solver)
+alloc_mms(V::Matrix, C=nothing; cutoff=false, solver=conf.MIP_SOLVER) =
+    alloc_mms(Additive(V), C, cutoff=cutoff, solver=solver)
 
 
 # Extract the allocation at the end of the pipeline.

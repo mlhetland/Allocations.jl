@@ -269,6 +269,14 @@ end
         @test res.alpha ≈ 1.0
         @test res.mmss ≈ [3.0, 5.0]
 
+        res = alloc_mms([2 1; 1 2])
+
+        @test res.alpha ≈ 2.0
+
+        res = alloc_mms([2 1; 1 2], cutoff=true)
+
+        @test res.alpha ≈ 1.0
+
     end
 
     @testset "MGG" begin
