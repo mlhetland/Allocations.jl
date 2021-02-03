@@ -3,15 +3,17 @@
 
 
 # A shared context for the MIP pipeline. The JuMP variable representing the
-# allocation (as an n-by-m matrix) is kept in alloc_var.
+# allocation (as an n-by-m matrix) is kept in alloc_var. The res field should be
+# a named tuple of any extra data to be splatted in at the end of the result.
 mutable struct MIPContext{V <: Additive, M, A, S}
     valuation::V
     alloc_var::A
     model::M
     solver::S
     alloc::Union{Allocation, Nothing}
+    res::NamedTuple
 end
-MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing)
+MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
 
 
 # Internal MIP-building functions
@@ -97,12 +99,19 @@ achieve_mnw(mnw_warn) = function(ctx)
 
     v_max = Float64(maximum(value(V, i, M) for i in N))
 
+    mnw_prec = true
+
     for (k, name) in [1 => "PO", 2 => "EF1", length(N) => "MNW"]
-        name == "MNW" && !mnw_warn && continue
         if log(v_max^k) - log(v_max^k - 1) == 0.0
+            if name == "MNW"
+                mnw_prec = false
+                !mnw_warn && continue
+            end
             @warn("Precision insufficient to guarantee $name")
         end
     end
+
+    ctx.res = (ctx.res..., mnw_prec = mnw_prec)
 
     @variable(model, W[N])
 
@@ -249,7 +258,7 @@ end
 # Generic function to extract the allocation at the end of the pipeline. Many
 # allocation methods may want their own `..._result` functions, adding other
 # fields to the named tuple being returned.
-alloc_result(ctx) = (alloc=ctx.alloc,)
+alloc_result(ctx) = (alloc=ctx.alloc, ctx.res...)
 
 
 """
@@ -286,7 +295,7 @@ end
 # be very low, compared to the actual MIP solving.)
 function mnw_result(ctx)
     V, A = ctx.valuation, ctx.alloc
-    return (alloc=A, mnw=nash_welfare(V, A))
+    return (alloc=A, mnw=nash_welfare(V, A), ctx.res...)
 end
 
 
@@ -314,8 +323,9 @@ halted. It may be useful to find a solution that is guaranteed to satisfy PO and
 EF1, even if it may not be exactly MNW. For such cases, the `mnw_warn` keyword
 argument may be set to `false`, to suppress the MNW warning.
 
-The return value is a named tuple with fields `alloc` (the `Allocation`) and
-`mnw` (the achieved Nash welfare for the agents with nonzero utility).
+The return value is a named tuple with fields `alloc` (the `Allocation`),
+`mnw` (the achieved Nash welfare for the agents with nonzero utility) and
+`mnw_prec` (whether or not there was enough precision to find MNW).
 """
 function alloc_mnw(V, C=nothing; mnw_warn=true, solver=conf.MIP_SOLVER)
 
@@ -349,7 +359,7 @@ end
 
 # Extract the allocation and the maximin value at the end of the pipeline.
 function mm_result(ctx)
-    return (alloc=ctx.alloc, mm=objective_value(ctx.model))
+    return (alloc=ctx.alloc, mm=objective_value(ctx.model), ctx.res...)
 end
 
 
@@ -436,7 +446,7 @@ alloc_mms(V::Matrix, C=nothing; solver=conf.MIP_SOLVER) =
 
 # Extract the allocation at the end of the pipeline.
 function mgg_result(ctx)
-    return (alloc=ctx.alloc,)
+    return (alloc=ctx.alloc, ctx.res...)
 end
 
 
