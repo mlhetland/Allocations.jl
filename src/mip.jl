@@ -80,7 +80,7 @@ end
 # Set up objective and constraints to make sure the JuMP model produces an MNW
 # allocation, using a slightly adapted version of the approach of Caragiannis
 # et al. (https://doi.org/10.1145/3355902).
-function achieve_mnw(ctx)
+achieve_mnw(mnw_warn) = function(ctx)
 
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
@@ -98,6 +98,7 @@ function achieve_mnw(ctx)
     v_max = Float64(maximum(value(V, i, M) for i in N))
 
     for (k, name) in [1 => "PO", 2 => "EF1", length(N) => "MNW"]
+        name == "MNW" && !mnw_warn && continue
         if log(v_max^k) - log(v_max^k - 1) == 0.0
             @warn("Precision insufficient to guarantee $name")
         end
@@ -290,7 +291,7 @@ end
 
 
 """
-    alloc_mnw(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_mnw(V[, C]; mnw_warn=true, solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
 valuation `V`, possibly subject to the constraints given by the `Constraint`
@@ -307,17 +308,19 @@ Welfare](https://doi.org/10.1145/3355902), with two minor modifications:
 
 Because of how the integer program is constructed, it is sensitive to
 precision effects, where a high number of agents, can make it impossible to
-guarantee Pareto optimalty, EF1 or MNW respectively). If the precision is too
-low, the appropriate warning will be issued, but the computation is not
-halted.
+guarantee Pareto optimalty (PO), EF1 or MNW respectively. If the precision is
+too low, the appropriate warning will be issued, but the computation is not
+halted. It may be useful to find a solution that is guaranteed to satisfy PO and
+EF1, even if it may not be exactly MNW. For such cases, the `mnw_warn` keyword
+argument may be set to `false`, to suppress the MNW warning.
 
 The return value is a named tuple with fields `alloc` (the `Allocation`) and
 `mnw` (the achieved Nash welfare for the agents with nonzero utility).
 """
-function alloc_mnw(V, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mnw(V, C=nothing; mnw_warn=true, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mnw |>
+    achieve_mnw(mnw_warn) |>
     enforce(C) |>
     solve_mip |>
     mnw_result
@@ -326,16 +329,16 @@ end
 
 
 """
-    alloc_mnw_ef1(V, C; solver=conf.MIP_SOLVER)
+    alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
 
 Equivalent to `alloc_mnw`, except that EF1 is enforced. Without any added
 constraints, MNW implies EF1, so this function is not needed in that case.
 Therefore the argument `C` is not optional.
 """
-function alloc_mnw_ef1(V, C; solver=conf.MIP_SOLVER)
+function alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mnw |>
+    achieve_mnw(mnw_warn) |>
     enforce_ef1 |>
     enforce(C) |>
     solve_mip |>
