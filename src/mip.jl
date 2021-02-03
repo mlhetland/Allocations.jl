@@ -95,7 +95,7 @@ function achieve_mnw(ctx)
 
     M = items(V)
 
-    v_max = maximum(value(V, i, M) for i in N)
+    v_max = Float64(maximum(value(V, i, M) for i in N))
 
     for (k, name) in [1 => "PO", 2 => "EF1", length(N) => "MNW"]
         if log(v_max^k) - log(v_max^k - 1) == 0.0
