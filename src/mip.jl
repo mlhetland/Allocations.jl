@@ -262,7 +262,7 @@ end
 # Generic function to extract the allocation at the end of the pipeline. Many
 # allocation methods may want their own `..._result` functions, adding other
 # fields to the named tuple being returned.
-alloc_result(ctx) = (alloc=ctx.alloc, ctx.res...)
+alloc_result(ctx) = (alloc=ctx.alloc, model=ctx.model, ctx.res...)
 
 
 """
@@ -275,7 +275,9 @@ and is most suitable for constraints where no specialized algorithm exists. For
 example, without constraints, a straightforward round robin picking sequence
 yields EF1, and a similar strategy works for cardinality constraints. (It is
 still possible to use this function without constraints, by explicitly supplying
-`nothing` for the constraint argument `C`.)
+`nothing` for the constraint argument `C`.) The return value is a named tuple
+with the fields `alloc` (the `Allocation`) and `model` (the JuMP model used in
+the computation).
 
 Note that for some constraints, there may not *be* an EF1 allocation, in which
 case the function will fail with an exception.
@@ -299,7 +301,7 @@ end
 # be very low, compared to the actual MIP solving.)
 function mnw_result(ctx)
     V, A = ctx.valuation, ctx.alloc
-    return (alloc=A, mnw=nash_welfare(V, A), ctx.res...)
+    return (alloc=A, model=ctx.model, mnw=nash_welfare(V, A), ctx.res...)
 end
 
 
@@ -328,8 +330,9 @@ EF1, even if it may not be exactly MNW. For such cases, the `mnw_warn` keyword
 argument may be set to `false`, to suppress the MNW warning.
 
 The return value is a named tuple with fields `alloc` (the `Allocation`),
-`mnw` (the achieved Nash welfare for the agents with nonzero utility) and
-`mnw_prec` (whether or not there was enough precision to find MNW).
+`mnw` (the achieved Nash welfare for the agents with nonzero utility),
+`mnw_prec` (whether or not there was enough precision to find MNW) and `model`
+(the JuMP model used in the computation).
 """
 function alloc_mnw(V, C=nothing; mnw_warn=true, solver=conf.MIP_SOLVER)
 
@@ -363,7 +366,10 @@ end
 
 # Extract the allocation and the maximin value at the end of the pipeline.
 function mm_result(ctx)
-    return (alloc=ctx.alloc, mm=objective_value(ctx.model), ctx.res...)
+    return (alloc=ctx.alloc,
+            model=ctx.model,
+            mm=objective_value(ctx.model),
+            ctx.res...)
 end
 
 
@@ -374,7 +380,8 @@ Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
 bundle value is maximized. The `cutoff`, if any, is a level at which we are
 satisfied, i.e., any allocation where all agents attain this value is
 acceptable. The return value is a named tuple with fields `alloc` (the
-`Allocation`) and `mm` (the lowest agent utility).
+`Allocation`), `mm` (the lowest agent utility) and `model` (the JuMP model
+used in the computation).
 """
 function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER)
 
@@ -394,7 +401,9 @@ Determine the maximin share of agent `i`, i.e., the bundle value she is
 guaranteed to attain if she partitions the items and the other agents choose
 their bundles. Useful, e.g., as a point of reference when determining the
 empirical approximation ratios of approximate MMS allocation algorithms. Also
-used as a subroutine in `alloc_mms`.
+used as a subroutine in `alloc_mms`. The return value is a named tuple with the
+fields `mms` (the maximin share of agent `i`) and `model` (the JuMP model used
+in the computation).
 """
 function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
 
@@ -404,7 +413,7 @@ function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
     # maximin in this scenario is MMS for agent i
     res = alloc_mm(Vi, C, solver=solver)
 
-    return res.mm
+    return (mms=res.mm, model=res.model)
 
 end
 
@@ -418,9 +427,11 @@ share (introduced by Budish, in his 2011 paper [The Combinatorial Assignment
 Problem: Approximate Competitive Equilibrium from Equal
 Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
 with fields `alloc` (the `Allocation`), `mmss`, the individual MMS values for
-the instance, and `alpha`, the lowest fraction of MMS that any agent achieves
-(is at least 1 exactly when the allocation is MMS). If `cutoff` is set to
-`true`, this fraction is capped at 1.
+the instance, `alpha`, the lowest fraction of MMS that any agent achieves
+(is at least 1 exactly when the allocation is MMS), `model` (the JuMP model used
+in computing `alpha`) and `mms_models` (the JuMP models used to compute the
+individual maximin shares). If `cutoff` is set to `true`, this fraction is
+capped at 1.
 """
 function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 
@@ -428,8 +439,12 @@ function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 
     X = zeros(na(V), ni(V))
 
+    ress = [mms(V, i, C, solver=solver) for i in N]
+
     # individual MMS values -- also included in the result
-    mmss = [mms(V, i, C, solver=solver) for i in N]
+    mmss = [res.mms for res in ress]
+
+    mms_models = [res.model for res in ress]
 
     for i in N
 
@@ -445,7 +460,8 @@ function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
     res = alloc_mm(Additive(X), C, cutoff=max_alpha, solver=solver)
 
 
-    return (alloc=res.alloc, alpha=res.mm, mmss=mmss)
+    return (alloc=res.alloc, model=res.model, mms_models=mms_models,
+            alpha=res.mm, mmss=mmss)
 
 end
 
@@ -456,7 +472,7 @@ alloc_mms(V::Matrix, C=nothing; cutoff=false, solver=conf.MIP_SOLVER) =
 
 # Extract the allocation at the end of the pipeline.
 function mgg_result(ctx)
-    return (alloc=ctx.alloc, ctx.res...)
+    return (alloc=ctx.alloc, model=ctx.model, ctx.res...)
 end
 
 
@@ -483,8 +499,8 @@ the function `wt(i, n)`. The method used is based on that of Lesca and Perny
 and ``\\beta'``) in their paper 2010 paper [LP Solvable Models for Multiagent
 Fair Allocation
 Problems](https://pdfs.semanticscholar.org/c6ae/41213e5744ec0a1cca632155a42a46f8b2ad.pdf).
-The return value is a named tuple with the field `alloc`, the `Allocation`
-that has been produced.
+The return value is a named tuple with the fields `alloc` (the `Allocation`
+that has been produced) and `model` (the JuMP model used in the computation).
 """
 function alloc_mgg(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 

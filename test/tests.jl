@@ -1,7 +1,8 @@
 using Allocations
+using JuMP
 using LightGraphs
-using Test
 using Random: seed!
+using Test
 
 # For matching test:
 using Allocations: bipartite_matching
@@ -182,6 +183,8 @@ end
         @test string(res.alloc) == "[{3}, {1, 2}]"
         @test res.mnw ≈ 3 * (4 + 3)
 
+        @test res.model isa JuMP.Model
+
     end
 
     @testset "MNW with constraints" begin
@@ -200,6 +203,9 @@ end
         # Adding constraint can't improve objective.
         @test resc.mnw <= res.mnw
 
+        @test res.model isa JuMP.Model
+        @test resc.model isa JuMP.Model
+
     end
 
     @testset "EF1 with conflicts" begin
@@ -212,7 +218,11 @@ end
         # Random graph
         C = Conflicts(SimpleGraph(nv, ne))
 
-        @test check_ef1(V, alloc_ef1(V, C).alloc)
+        res = alloc_ef1(V, C)
+
+        @test res.model isa JuMP.Model
+
+        @test check_ef1(V, res.alloc)
 
         # Check that it's usable without constraints, even though we're not
         # supplying a single-argument MIP implementation:
@@ -238,6 +248,7 @@ end
 
         res1 = alloc_mnw_ef1(V, C)
 
+        @test res.model isa JuMP.Model
         @test res1.alloc isa Allocation
         @test check_ef1(V, res1.alloc)
 
@@ -253,6 +264,7 @@ end
         A = res.alloc
         N = agents(V)
 
+        @test res.model isa JuMP.Model
         @test A isa Allocation
         @test res.mm == minimum(value(V, i, bundle(A, i)) for i in N)
 
@@ -265,6 +277,10 @@ end
         @test res.alloc isa Allocation
 
         res = alloc_mms([3 1 2; 4 4 5])
+
+        @test res.model isa JuMP.Model
+        @test length(res.mms_models) == 2
+        @test all(isa.(res.mms_models, JuMP.Model))
 
         @test res.alpha ≈ 1.0
         @test res.mmss ≈ [3.0, 5.0]
@@ -284,6 +300,7 @@ end
         res = alloc_mgg(V)
 
         @test res.alloc isa Allocation
+        @test res.model isa JuMP.Model
 
         res = alloc_mgg([1 1 3; 1 1 2])
 
