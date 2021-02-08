@@ -340,6 +340,29 @@ end
 
     end
 
+    @testset "Random with conflicts" begin
+
+        n, m = 10, 50
+        nv, ne = m, 30
+
+        V = Additive(zeros(n, m)) # Irrelevant
+
+        # Random graph
+        # (Could fail the Δ < n check, if we're unlucky)
+        C = Conflicts(SimpleGraph(nv, ne))
+
+        res = alloc_rand(V, C)
+        A = res.alloc
+
+        @test A isa Allocation
+        # Implied by check_partition, but useful checkpoint:
+        @test check_complete(A)
+        @test check_partition(A)
+        @test check(V, A, C)
+
+    end
+
+
 end
 
 return nothing

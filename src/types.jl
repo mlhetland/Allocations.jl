@@ -133,12 +133,20 @@ owners(A, g) = owners(A)[g]
 
 
 """
-    owners(A, g)
+    owner(A, g)
 
 The agent to which item `g` has been allocated in the allocation `A`. Will
 produce an error if `g` has been allocated to more than one agent.
 """
 owner(A, g) = only(owners(A, g))
+
+
+"""
+    owned(A, g)
+
+Whether or not the item `g` is owned by any agent in the allocation `A`.
+"""
+owned(A, g) = !isempty(owners(A, g))
 
 
 """
