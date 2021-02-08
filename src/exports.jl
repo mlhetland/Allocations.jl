@@ -17,6 +17,7 @@ export
     check_ef1,
     check_efx,
     check_partition,
+    check_complete,
     deny!,
     give!,
     graph,

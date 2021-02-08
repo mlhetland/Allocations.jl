@@ -136,6 +136,27 @@ end
 
 end
 
+@testset "Basic checks" begin
+
+    A = Allocation(2, 2)
+
+    give!(A, 1, 1)
+
+    @test !check_partition(A)
+    @test !check_complete(A)
+
+    give!(A, 2, 2)
+
+    @test check_partition(A)
+    @test check_complete(A)
+
+    give!(A, 1, 2)
+
+    @test !check_partition(A)
+    @test check_complete(A)
+
+end
+
 @testset "EF checks" begin
 
     n, m = 2, 3

@@ -2,6 +2,20 @@
 
 
 """
+    check_complete(A)
+
+Check that the allocation is complete, or effective, in the sense that each item
+has been allocated to at least one agent.
+"""
+function check_complete(A)
+    for g in items(A)
+        length(owners(A, g)) >= 1 || return false
+    end
+    return true
+end
+
+
+"""
     check_partition(A)
 
 Check that the allocation is a partition, i.e., that each item has been
