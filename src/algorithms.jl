@@ -2,11 +2,20 @@
     alloc_rand(V)
 
 A straightforward lottery that allocates the items randomly to the agents. For
-each item, its agent is selected uniformly at random.
+each item, its agent is selected uniformly at random. The valuation `V` is not
+used, other than to determine the number of agents and items.
 """
-function alloc_rand(V)
+alloc_rand(V) = alloc_rand(na(V), ni(V))
 
-    A = Allocation(na(V), ni(V))
+
+"""
+    alloc_rand(n::Int, m::Int)
+
+Same as `alloc_rand(V)`, for `n` agents and `m` items.
+"""
+function alloc_rand(n::Int, m::Int)
+
+    A = Allocation(n, m)
 
     N, M = agents(A), items(A)
 
@@ -17,6 +26,7 @@ function alloc_rand(V)
     return (alloc=A,)
 
 end
+
 
 """
     alloc_rand(V, C::Conflicts)
@@ -38,14 +48,23 @@ This final arbitrary reallocation is also performed randomly in this
 implementation, by going through the items in random order, allocating each to a
 randomly selected agent among those able to receive it.
 
+The valuation `V` is not used, other than to determine the number of agents and
+items.
+
 For this algorithm to function properly, the maximum degree of the conflict
 graph should be strictly less than the number of agents.
 """
-function alloc_rand(V, C::Conflicts)
+alloc_rand(V, C::Conflicts) = alloc_rand(na(V), ni(V), C)
+
+
+"""
+    alloc_rand(n::Int, m::Int, C::Conflicts)
+
+Same as `alloc_rand(V, C)`, for `n` agents and `m` items.
+"""
+function alloc_rand(n::Int, m::Int, C::Conflicts)
 
     G = graph(C)
-
-    n, m = na(V), ni(V)
 
     @assert Δ(G) < n
 
@@ -53,7 +72,7 @@ function alloc_rand(V, C::Conflicts)
     π = randperm(m)
 
     # Tentative allocation:
-    A = alloc_rand(V).alloc
+    A = alloc_rand(n, m).alloc
 
     removed = Set{Int}()
 
