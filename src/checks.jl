@@ -1,6 +1,20 @@
 # Checks for various fairness criteria.
 
 
+"""
+    check_partition(A)
+
+Check that the allocation is a partition, i.e., that each item has been
+allocated to exactly one agent.
+"""
+function check_partition(A)
+    for g in items(A)
+        length(owners(A, g)) == 1 || return false
+    end
+    return true
+end
+
+
 # General check for EF-like properties (EF_ = EF, EF1, EFX, ...), where the
 # value of the other agent's bundle is somehow modified, e.g., by removing
 # some item. This modified value is provided by the function value_:

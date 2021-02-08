@@ -187,7 +187,7 @@ end
 
     end
 
-    @testset "MNW with constraints" begin
+    @testset "MNW with conflicts" begin
 
         G = path_graph(m)
         C = Conflicts(G)
@@ -305,6 +305,17 @@ end
         res = alloc_mgg([1 1 3; 1 1 2])
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
+
+    end
+
+    @testset "Random" begin
+
+        res = alloc_rand(V)
+
+        A = res.alloc
+
+        @test A isa Allocation
+        @test check_partition(A)
 
     end
 
