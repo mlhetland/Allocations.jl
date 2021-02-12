@@ -40,7 +40,7 @@ function check_ef_(V, A, value_)
 
         i !== j || continue
 
-        if value(V, i, bundle(A, i)) < value_(V, i, bundle(A, j))
+        if value(V, i, A) < value_(V, i, bundle(A, j))
             return false
         end
 

@@ -9,7 +9,7 @@ with large utilities, the product is performed using floating-point arithmetic,
 even if the utilities are integral.
 """
 function nash_welfare(V, A; nonzero=true)
-    x = Float64[value(V, i, bundle(A, i)) for i in agents(V)]
+    x = Float64[value(V, i, A) for i in agents(V)]
     if nonzero
         x = x[x .> 0.0]
     end
