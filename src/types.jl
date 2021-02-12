@@ -207,11 +207,8 @@ The value agent `i` receives in allocation `A`, under the valuation `V`.
 """
 value(V::Valuation, i, A::Allocation) = bundle_value(V, i, A)
 
+# Use for disambiguation definitions for subtypes:
 bundle_value(V, i, A) = value(V, i, bundle(A, i))
-
-# Disambiguation, for Valuation subtypes:
-
-value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
 """
@@ -311,6 +308,10 @@ isnonnegative(V::Additive) = all(V.values .>= zero(eltype(V.values)))
 The value of item `g`, according to agent `i`.
 """
 value(V::Additive, i, g::Int) = V.values[i, g]
+
+
+# Disambiguation:
+value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
 # The bundle value is "lifted" from item values by addition.
