@@ -1,5 +1,5 @@
+import JuMP
 using Allocations
-using JuMP
 using LightGraphs
 using Random: seed!
 using Test
