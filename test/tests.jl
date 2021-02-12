@@ -74,12 +74,12 @@ function runtests()
 
             A = Allocation(5, 10)
 
-            @test value(V, i, bundle(A, i)) == 0
+            @test value(V, i, A) == 0
 
             give!(A, i, g)
             give!(A, i, h)
 
-            @test value(V, i, bundle(A, i)) == 3
+            @test value(V, i, A) == 3
 
         end
 
@@ -287,7 +287,7 @@ end
 
         @test res.model isa JuMP.Model
         @test A isa Allocation
-        @test res.mm == minimum(value(V, i, bundle(A, i)) for i in N)
+        @test res.mm == minimum(value(V, i, A) for i in N)
 
     end
 
@@ -313,6 +313,8 @@ end
         res = alloc_mms([2 1; 1 2], cutoff=true)
 
         @test res.alpha ≈ 1.0
+
+        @test mms_alpha(V, res.alloc, res.mmss) ≈ res.alpha
 
     end
 

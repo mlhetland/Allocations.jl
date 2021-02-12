@@ -23,6 +23,7 @@ export
     graph,
     items,
     mms,
+    mms_alpha,
     na,
     nash_welfare,
     ni,

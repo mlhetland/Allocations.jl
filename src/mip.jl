@@ -419,6 +419,26 @@ end
 
 
 """
+    mms_alpha(V, A, mmss)
+
+Utility function to find the fraction of the maximin share guarantee attained by
+the allocation `A`, under the valuation `V`, where `mmss[i]` is the MMS of agent
+`i`. This makes it possible, for example, to use the `mmss` field from the
+result of `alloc_mms` to find the MMS approximation provided by an allocation
+constructed by other means. For example:
+
+    mmss = alloc_mms(V).mmss
+    A = alloc_rand(V).alloc
+    alpha = mms_alpha(V, A, mmss)
+
+"""
+function mms_alpha(V, A, mmss)
+    vals = [value(V, i, A) for i in agents(A)]
+    return minimum(vals ./ mmss)
+end
+
+
+"""
     alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
@@ -458,7 +478,6 @@ function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 
     # maximin with scaled values is as close to the MMS guarantee as possible
     res = alloc_mm(Additive(X), C, cutoff=max_alpha, solver=solver)
-
 
     return (alloc=res.alloc, model=res.model, mms_models=mms_models,
             alpha=res.mm, mmss=mmss)

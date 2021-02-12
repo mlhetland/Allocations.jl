@@ -205,7 +205,13 @@ function value end
 
 The value agent `i` receives in allocation `A`, under the valuation `V`.
 """
-value(V::Valuation, i, A::Allocation) = value(V, i, bundle(A, i))
+value(V::Valuation, i, A::Allocation) = bundle_value(V, i, A)
+
+bundle_value(V, i, A) = value(V, i, bundle(A, i))
+
+# Disambiguation, for Valuation subtypes:
+
+value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
 """
