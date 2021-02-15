@@ -11,7 +11,7 @@ even if the utilities are integral.
 function nash_welfare(V, A; nonzero=true)
     x = Float64[value(V, i, A) for i in agents(V)]
     if nonzero
-        x = x[x .> sqrt(eps(x))] # More than approximately zero
+        x = x[x .> sqrt(eps(Float64))] # More than approximately zero
     end
     return isempty(x) ? 0.0 : prod(x)
 end
