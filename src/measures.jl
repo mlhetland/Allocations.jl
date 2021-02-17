@@ -15,3 +15,15 @@ function nash_welfare(V, A; nonzero=true)
     end
     return isempty(x) ? 0.0 : prod(x)
 end
+
+
+"""
+    prop_alpha(V, A)
+
+Compute the fraction of proportionality guaranteed to every agent, that is, what
+fraction each agent is guaranteed to get of `1/n` of their value for the grand
+bundle `M`.
+"""
+function prop_alpha(V, A)
+    na(V) * minimum(value(V, i, A) / value(V, i, items(V)) for i in agents(V))
+end

@@ -27,5 +27,6 @@ export
     na,
     nash_welfare,
     ni,
+    prop_alpha,
     value!,
     value

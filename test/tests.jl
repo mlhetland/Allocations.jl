@@ -185,6 +185,18 @@ end
 
 end
 
+@testset "Measures" begin
+
+    V = Additive([1 2; 2 1])
+    A = Allocation(2, 2)
+    give!(A, 1, 2)
+    give!(A, 2, 1)
+
+    @test nash_welfare(V, A) ≈ 4
+    @test prop_alpha(V, A) ≈ 2 / (3 / 2)
+
+end
+
 @testset "MIPs" begin
 
     n, m = 3, 15
