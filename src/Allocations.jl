@@ -74,7 +74,9 @@ module Allocations
 import JuMP
 using JuMP: Model, optimizer_with_attributes, objective_value, @variable,
             @objective, @constraint, fix, optimize!, termination_status, MOI
+using LightGraphs
 using Cbc
+using Random
 
 include("exports.jl")
 include("conf.jl")

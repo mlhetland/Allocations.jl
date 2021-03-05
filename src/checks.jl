@@ -1,6 +1,34 @@
 # Checks for various fairness criteria.
 
 
+"""
+    check_complete(A)
+
+Check that the allocation is complete, or effective, in the sense that each item
+has been allocated to at least one agent.
+"""
+function check_complete(A)
+    for g in items(A)
+        length(owners(A, g)) >= 1 || return false
+    end
+    return true
+end
+
+
+"""
+    check_partition(A)
+
+Check that the allocation is a partition, i.e., that each item has been
+allocated to exactly one agent.
+"""
+function check_partition(A)
+    for g in items(A)
+        length(owners(A, g)) == 1 || return false
+    end
+    return true
+end
+
+
 # General check for EF-like properties (EF_ = EF, EF1, EFX, ...), where the
 # value of the other agent's bundle is somehow modified, e.g., by removing
 # some item. This modified value is provided by the function value_:
@@ -12,7 +40,7 @@ function check_ef_(V, A, value_)
 
         i !== j || continue
 
-        if value(V, i, bundle(A, i)) < value_(V, i, bundle(A, j))
+        if value(V, i, A) < value_(V, i, bundle(A, j))
             return false
         end
 
@@ -78,6 +106,24 @@ function check(V, A, C::Counts)
 
         maximum(counts) <= c.threshold || return false
 
+    end
+
+    return true
+
+end
+
+
+"""
+    check(V, A, C::Conflicts)
+
+Check whether the allocation `A` respects the item conflicts `C`.
+"""
+function check(V, A, C::Conflicts)
+
+    G = graph(C)
+
+    for e in edges(G)
+        isempty(owners(A, src(e)) ∩ owners(A, dst(e))) || return false
     end
 
     return true

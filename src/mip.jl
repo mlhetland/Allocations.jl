@@ -3,15 +3,17 @@
 
 
 # A shared context for the MIP pipeline. The JuMP variable representing the
-# allocation (as an n-by-m matrix) is kept in alloc_var.
+# allocation (as an n-by-m matrix) is kept in alloc_var. The res field should be
+# a named tuple of any extra data to be splatted in at the end of the result.
 mutable struct MIPContext{V <: Additive, M, A, S}
     valuation::V
     alloc_var::A
     model::M
     solver::S
     alloc::Union{Allocation, Nothing}
+    res::NamedTuple
 end
-MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing)
+MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
 
 
 # Internal MIP-building functions
@@ -80,7 +82,7 @@ end
 # Set up objective and constraints to make sure the JuMP model produces an MNW
 # allocation, using a slightly adapted version of the approach of Caragiannis
 # et al. (https://doi.org/10.1145/3355902).
-function achieve_mnw(ctx)
+achieve_mnw(mnw_warn) = function(ctx)
 
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
@@ -95,13 +97,21 @@ function achieve_mnw(ctx)
 
     M = items(V)
 
-    v_max = maximum(value(V, i, M) for i in N)
+    v_max = Float64(maximum(value(V, i, M) for i in N))
+
+    mnw_prec = true
 
     for (k, name) in [1 => "PO", 2 => "EF1", length(N) => "MNW"]
         if log(v_max^k) - log(v_max^k - 1) == 0.0
+            if name == "MNW"
+                mnw_prec = false
+                !mnw_warn && continue
+            end
             @warn("Precision insufficient to guarantee $name")
         end
     end
+
+    ctx.res = (ctx.res..., mnw_prec = mnw_prec)
 
     @variable(model, W[N])
 
@@ -126,7 +136,7 @@ end
 
 # Set up objective and constraints to make sure the JuMP model produces an
 # egalitarian/maximin allocation.
-function achieve_mm(ctx)
+achieve_mm(cutoff=nothing) = function(ctx)
 
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
@@ -136,6 +146,10 @@ function achieve_mm(ctx)
 
     for i in N
         @constraint(model, v_min <= sum(A[i, g] * value(V, i, g) for g in M))
+    end
+
+    if cutoff ≢ nothing
+        @constraint(model, v_min <= cutoff)
     end
 
     @objective(model, Max, v_min)
@@ -193,7 +207,104 @@ enforce(C::Counts) = function(ctx)
 end
 
 
+# Enforce item conflict constraints on the JuMP model.
+enforce(C::Conflicts) = function(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    G = graph(C)
+
+    @assert nv(G) == ni(V)
+
+    for e in edges(G)
+        g, h = src(e), dst(e)
+        for i in agents(V)
+            @constraint(model, A[i, g] + A[i, h] <= 1)
+        end
+    end
+
+    return ctx
+
+end
+
+
+# Enforce envy-freeness up to a single object (EF1) on the JuMP model.
+function enforce_ef1(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    N, M = agents(V), items(V)
+
+    # D[i, j, g]: Item g dropped for i to not envy j
+    @variable(model, D[N, N, M], binary=true)
+
+    for i in N, j in N
+
+        # Drop at most one item for envy-freeness
+        @constraint(model, sum(D[i, j, g] for g in M) <= 1)
+
+        for g in M
+            # Drop only items allocated to j to make i not envy j
+            @constraint(model, D[i, j, g] <= A[j, g])
+        end
+
+    end
+
+    for i in N, j in N
+
+        i == j && continue
+
+        # Agent i's value for her own bundle
+        vii = sum(value(V, i, g) * A[i, g] for g in M)
+
+        # Agent i's value for j's bundle, without dropped item
+        vij1 = sum(value(V, i, g) * (A[j, g] - D[i, j, g]) for g in M)
+
+        # No envy, once an item is (possibly) dropped:
+        @constraint(model, vii >= vij1)
+
+    end
+
+    return ctx
+
+end
+
+
 # Actual allocation methods
+
+
+# Generic function to extract the allocation at the end of the pipeline. Many
+# allocation methods may want their own `..._result` functions, adding other
+# fields to the named tuple being returned.
+alloc_result(ctx) = (alloc=ctx.alloc, model=ctx.model, ctx.res...)
+
+
+"""
+    alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+
+Create an `Allocation` that is envy-free up to one item (EF1), based on the
+valuation `V`, possibly subject to the constraints given by the `Constraint`
+object `C`. The solution is found using a straightforward mixed-integer program,
+and is most suitable for constraints where no specialized algorithm exists. For
+example, without constraints, a straightforward round robin picking sequence
+yields EF1, and a similar strategy works for cardinality constraints. (It is
+still possible to use this function without constraints, by explicitly supplying
+`nothing` for the constraint argument `C`.) The return value is a named tuple
+with the fields `alloc` (the `Allocation`) and `model` (the JuMP model used in
+the computation).
+
+Note that for some constraints, there may not *be* an EF1 allocation, in which
+case the function will fail with an exception.
+"""
+function alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+
+    init_mip(V, solver) |>
+    enforce_ef1 |>
+    enforce(C) |>
+    solve_mip |>
+    alloc_result
+
+end
 
 
 # Extract the allocation and the MNW value (excluding agents with a utility of
@@ -204,12 +315,12 @@ end
 # be very low, compared to the actual MIP solving.)
 function mnw_result(ctx)
     V, A = ctx.valuation, ctx.alloc
-    return (alloc=A, mnw=nash_welfare(V, A))
+    return (alloc=A, model=ctx.model, mnw=nash_welfare(V, A), ctx.res...)
 end
 
 
 """
-    alloc_mnw(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_mnw(V[, C]; mnw_warn=true, solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
 valuation `V`, possibly subject to the constraints given by the `Constraint`
@@ -226,17 +337,40 @@ Welfare](https://doi.org/10.1145/3355902), with two minor modifications:
 
 Because of how the integer program is constructed, it is sensitive to
 precision effects, where a high number of agents, can make it impossible to
-guarantee Pareto optimalty, EF1 or MNW respectively). If the precision is too
-low, the appropriate warning will be issued, but the computation is not
-halted.
+guarantee Pareto optimalty (PO), EF1 or MNW respectively. If the precision is
+too low, the appropriate warning will be issued, but the computation is not
+halted. It may be useful to find a solution that is guaranteed to satisfy PO and
+EF1, even if it may not be exactly MNW. For such cases, the `mnw_warn` keyword
+argument may be set to `false`, to suppress the MNW warning.
 
-The return value is a named tuple with fields `alloc` (the `Allocation`) and
-`mnw` (the achieved Nash welfare for the agents with nonzero utility).
+The return value is a named tuple with fields `alloc` (the `Allocation`),
+`mnw` (the achieved Nash welfare for the agents with nonzero utility),
+`mnw_prec` (whether or not there was enough precision to find MNW) and `model`
+(the JuMP model used in the computation).
 """
-function alloc_mnw(V, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mnw(V, C=nothing; mnw_warn=true, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mnw |>
+    achieve_mnw(mnw_warn) |>
+    enforce(C) |>
+    solve_mip |>
+    mnw_result
+
+end
+
+
+"""
+    alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
+
+Equivalent to `alloc_mnw`, except that EF1 is enforced. Without any added
+constraints, MNW implies EF1, so this function is not needed in that case.
+Therefore the argument `C` is not optional.
+"""
+function alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
+
+    init_mip(V, solver) |>
+    achieve_mnw(mnw_warn) |>
+    enforce_ef1 |>
     enforce(C) |>
     solve_mip |>
     mnw_result
@@ -246,21 +380,27 @@ end
 
 # Extract the allocation and the maximin value at the end of the pipeline.
 function mm_result(ctx)
-    return (alloc=ctx.alloc, mm=objective_value(ctx.model))
+    return (alloc=ctx.alloc,
+            model=ctx.model,
+            mm=objective_value(ctx.model),
+            ctx.res...)
 end
 
 
 """
-    alloc_mm(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_mm(V[, C]; cutoff=nothing, solver=conf.MIP_SOLVER)
 
 Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
-bundle value is maximized. The return value is a named tuple with fields
-`alloc` (the `Allocation`) and `mm` (the lowest agent utility).
+bundle value is maximized. The `cutoff`, if any, is a level at which we are
+satisfied, i.e., any allocation where all agents attain this value is
+acceptable. The return value is a named tuple with fields `alloc` (the
+`Allocation`), `mm` (the lowest agent utility) and `model` (the JuMP model
+used in the computation).
 """
-function alloc_mm(V, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mm |>
+    achieve_mm(cutoff) |>
     enforce(C) |>
     solve_mip |>
     mm_result
@@ -275,7 +415,9 @@ Determine the maximin share of agent `i`, i.e., the bundle value she is
 guaranteed to attain if she partitions the items and the other agents choose
 their bundles. Useful, e.g., as a point of reference when determining the
 empirical approximation ratios of approximate MMS allocation algorithms. Also
-used as a subroutine in `alloc_mms`.
+used as a subroutine in `alloc_mms`. The return value is a named tuple with the
+fields `mms` (the maximin share of agent `i`) and `model` (the JuMP model used
+in the computation).
 """
 function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
 
@@ -285,13 +427,33 @@ function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
     # maximin in this scenario is MMS for agent i
     res = alloc_mm(Vi, C, solver=solver)
 
-    return res.mm
+    return (mms=res.mm, model=res.model)
 
 end
 
 
 """
-    alloc_mms(V[, C]; solver=conf.MIP_SOLVER)
+    mms_alpha(V, A, mmss)
+
+Utility function to find the fraction of the maximin share guarantee attained by
+the allocation `A`, under the valuation `V`, where `mmss[i]` is the MMS of agent
+`i`. This makes it possible, for example, to use the `mmss` field from the
+result of `alloc_mms` to find the MMS approximation provided by an allocation
+constructed by other means. For example:
+
+    mmss = alloc_mms(V).mmss
+    A = alloc_rand(V).alloc
+    alpha = mms_alpha(V, A, mmss)
+
+"""
+function mms_alpha(V, A, mmss)
+    vals = [value(V, i, A) for i in agents(A)]
+    return minimum(vals ./ mmss)
+end
+
+
+"""
+    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -299,17 +461,24 @@ share (introduced by Budish, in his 2011 paper [The Combinatorial Assignment
 Problem: Approximate Competitive Equilibrium from Equal
 Incomes](https://doi.org/10.1086/664613)). The return value is a named tuple
 with fields `alloc` (the `Allocation`), `mmss`, the individual MMS values for
-the instance, and `alpha`, the lowest fraction of MMS that any agent achieves
-(is at least 1 exactly when the allocation is MMS).
+the instance, `alpha`, the lowest fraction of MMS that any agent achieves
+(is at least 1 exactly when the allocation is MMS), `model` (the JuMP model used
+in computing `alpha`) and `mms_models` (the JuMP models used to compute the
+individual maximin shares). If `cutoff` is set to `true`, this fraction is
+capped at 1.
 """
-function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 
     N, M = agents(V), items(V)
 
     X = zeros(na(V), ni(V))
 
+    ress = [mms(V, i, C, solver=solver) for i in N]
+
     # individual MMS values -- also included in the result
-    mmss = [mms(V, i, C, solver=solver) for i in N]
+    mmss = [res.mms for res in ress]
+
+    mms_models = [res.model for res in ress]
 
     for i in N
 
@@ -319,21 +488,24 @@ function alloc_mms(V::Additive, C=nothing; solver=conf.MIP_SOLVER)
 
     end
 
-    # maximin with scaled values is as close to the MMS guarantee as possible
-    res = alloc_mm(Additive(X), C, solver=solver)
+    max_alpha = cutoff ? 1.0 : nothing
 
-    return (alloc=res.alloc, alpha=res.mm, mmss=mmss)
+    # maximin with scaled values is as close to the MMS guarantee as possible
+    res = alloc_mm(Additive(X), C, cutoff=max_alpha, solver=solver)
+
+    return (alloc=res.alloc, model=res.model, mms_models=mms_models,
+            alpha=res.mm, mmss=mmss)
 
 end
 
 
-alloc_mms(V::Matrix, C=nothing; solver=conf.MIP_SOLVER) =
-    alloc_mms(Additive(V), C, solver=solver)
+alloc_mms(V::Matrix, C=nothing; cutoff=false, solver=conf.MIP_SOLVER) =
+    alloc_mms(Additive(V), C, cutoff=cutoff, solver=solver)
 
 
 # Extract the allocation at the end of the pipeline.
 function mgg_result(ctx)
-    return (alloc=ctx.alloc,)
+    return (alloc=ctx.alloc, model=ctx.model, ctx.res...)
 end
 
 
@@ -360,8 +532,8 @@ the function `wt(i, n)`. The method used is based on that of Lesca and Perny
 and ``\\beta'``) in their paper 2010 paper [LP Solvable Models for Multiagent
 Fair Allocation
 Problems](https://pdfs.semanticscholar.org/c6ae/41213e5744ec0a1cca632155a42a46f8b2ad.pdf).
-The return value is a named tuple with the field `alloc`, the `Allocation`
-that has been produced.
+The return value is a named tuple with the fields `alloc` (the `Allocation`
+that has been produced) and `model` (the JuMP model used in the computation).
 """
 function alloc_mgg(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 

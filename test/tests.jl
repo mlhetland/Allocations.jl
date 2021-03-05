@@ -1,4 +1,7 @@
+import JuMP
 using Allocations
+using LightGraphs
+using Random: seed!
 using Test
 
 # For matching test:
@@ -8,6 +11,8 @@ using Allocations: bipartite_matching
 using Allocations: Category
 
 function runtests()
+
+    seed!(4252170447285279131)
 
 @testset "Types" begin
 
@@ -75,12 +80,12 @@ function runtests()
 
             A = Allocation(5, 10)
 
-            @test value(V, i, bundle(A, i)) == 0
+            @test value(V, i, A) == 0
 
             give!(A, i, g)
             give!(A, i, h)
 
-            @test value(V, i, bundle(A, i)) == 3
+            @test value(V, i, A) == 3
 
         end
 
@@ -120,6 +125,16 @@ function runtests()
 
     end
 
+    @testset "Conflicts" begin
+
+        C = Conflicts(star_graph(10))
+
+        @test C isa Conflicts
+
+        @test graph(C) isa AbstractGraph
+
+    end
+
 end
 
 @testset "Utilities" begin
@@ -140,6 +155,27 @@ end
         @test sum(M) == 5
 
     end
+
+end
+
+@testset "Basic checks" begin
+
+    A = Allocation(2, 2)
+
+    give!(A, 1, 1)
+
+    @test !check_partition(A)
+    @test !check_complete(A)
+
+    give!(A, 2, 2)
+
+    @test check_partition(A)
+    @test check_complete(A)
+
+    give!(A, 1, 2)
+
+    @test !check_partition(A)
+    @test check_complete(A)
 
 end
 
@@ -171,6 +207,18 @@ end
 
 end
 
+@testset "Measures" begin
+
+    V = Additive([1 2; 2 1])
+    A = Allocation(2, 2)
+    give!(A, 1, 2)
+    give!(A, 2, 1)
+
+    @test nash_welfare(V, A) ≈ 4
+    @test prop_alpha(V, A) ≈ 2 / (3 / 2)
+
+end
+
 @testset "MIPs" begin
 
     n, m = 3, 15
@@ -189,6 +237,78 @@ end
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
         @test res.mnw ≈ 3 * (4 + 3)
+
+        @test res.model isa JuMP.Model
+
+    end
+
+    @testset "MNW with conflicts" begin
+
+        G = path_graph(m)
+        C = Conflicts(G)
+
+        res = alloc_mnw(V)
+        resc = alloc_mnw(V, C)
+
+        @test check(V, resc.alloc, C)
+
+        @test resc.alloc isa Allocation
+        @test resc.mnw > 0
+
+        # Adding constraint can't improve objective.
+        @test resc.mnw <= res.mnw
+
+        @test res.model isa JuMP.Model
+        @test resc.model isa JuMP.Model
+
+    end
+
+    @testset "EF1 with conflicts" begin
+
+        n, m = 3, 9
+        nv, ne = m, 2m
+
+        V = Additive(rand(n, m))
+
+        # Random graph
+        C = Conflicts(SimpleGraph(nv, ne))
+
+        res = alloc_ef1(V, C)
+
+        @test res.model isa JuMP.Model
+
+        @test check_ef1(V, res.alloc)
+
+        # Check that it's usable without constraints, even though we're not
+        # supplying a single-argument MIP implementation:
+        @test check_ef1(V, alloc_ef1(V, nothing).alloc)
+
+    end
+
+    @testset "MNW+EF1 with conflicts" begin
+
+        # Specific example (V and G) where MNW does not lead to EF1:
+
+        V = Additive([10  5  8  1  2  9; 6  1  9  6  8  9])
+
+        G = SimpleGraph(ni(V))
+        add_edge!(G, 3, 4)
+        add_edge!(G, 5, 6)
+
+        C = Conflicts(G)
+
+        res = alloc_mnw(V, C)
+
+        @test !check_ef1(V, res.alloc)
+
+        res1 = alloc_mnw_ef1(V, C)
+
+        @test res.model isa JuMP.Model
+        @test res1.alloc isa Allocation
+        @test check_ef1(V, res1.alloc)
+
+        # MNW did not yield EF1, so enforcing EF1 should reduce MNW:
+        @test res1.mnw < res.mnw
 
     end
 
@@ -222,8 +342,9 @@ end
         A = res.alloc
         N = agents(V)
 
+        @test res.model isa JuMP.Model
         @test A isa Allocation
-        @test res.mm == minimum(value(V, i, bundle(A, i)) for i in N)
+        @test res.mm == minimum(value(V, i, A) for i in N)
 
     end
 
@@ -235,8 +356,22 @@ end
 
         res = alloc_mms([3 1 2; 4 4 5])
 
+        @test res.model isa JuMP.Model
+        @test length(res.mms_models) == 2
+        @test all(isa.(res.mms_models, JuMP.Model))
+
         @test res.alpha ≈ 1.0
         @test res.mmss ≈ [3.0, 5.0]
+
+        res = alloc_mms([2 1; 1 2])
+
+        @test res.alpha ≈ 2.0
+
+        res = alloc_mms([2 1; 1 2], cutoff=true)
+
+        @test res.alpha ≈ 1.0
+
+        @test mms_alpha(V, res.alloc, res.mmss) ≈ res.alpha
 
     end
 
@@ -245,12 +380,47 @@ end
         res = alloc_mgg(V)
 
         @test res.alloc isa Allocation
+        @test res.model isa JuMP.Model
 
         res = alloc_mgg([1 1 3; 1 1 2])
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
 
     end
+
+    @testset "Random" begin
+
+        res = alloc_rand(V)
+
+        A = res.alloc
+
+        @test A isa Allocation
+        @test check_partition(A)
+
+    end
+
+    @testset "Random with conflicts" begin
+
+        n, m = 10, 50
+        nv, ne = m, 30
+
+        V = Additive(zeros(n, m)) # Irrelevant
+
+        # Random graph
+        # (Could fail the Δ < n check, if we're unlucky)
+        C = Conflicts(SimpleGraph(nv, ne))
+
+        res = alloc_rand(V, C)
+        A = res.alloc
+
+        @test A isa Allocation
+        # Implied by check_partition, but useful checkpoint:
+        @test check_complete(A)
+        @test check_partition(A)
+        @test check(V, A, C)
+
+    end
+
 
 end
 

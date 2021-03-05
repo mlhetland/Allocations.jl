@@ -133,12 +133,20 @@ owners(A, g) = owners(A)[g]
 
 
 """
-    owners(A, g)
+    owner(A, g)
 
 The agent to which item `g` has been allocated in the allocation `A`. Will
 produce an error if `g` has been allocated to more than one agent.
 """
 owner(A, g) = only(owners(A, g))
+
+
+"""
+    owned(A, g)
+
+Whether or not the item `g` is owned by any agent in the allocation `A`.
+"""
+owned(A, g) = !isempty(owners(A, g))
 
 
 """
@@ -204,6 +212,17 @@ abstract type Valuation end
 The value agent `i` places on bundle `S`, according to the oracle `V`.
 """
 function value end
+
+
+"""
+    value(V::Valuation, i, A::Allocation)
+
+The value agent `i` receives in allocation `A`, under the valuation `V`.
+"""
+value(V::Valuation, i, A::Allocation) = bundle_value(V, i, A)
+
+# Use for disambiguation definitions for subtypes:
+bundle_value(V, i, A) = value(V, i, bundle(A, i))
 
 
 """
@@ -303,6 +322,10 @@ isnonnegative(V::Additive) = all(V.values .>= zero(eltype(V.values)))
 The value of item `g`, according to agent `i`.
 """
 value(V::Additive, i, g::Int) = V.values[i, g]
+
+
+# Disambiguation:
+value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
 # The bundle value is "lifted" from item values by addition.
@@ -435,10 +458,8 @@ getindex(c::OrderedCategory, i::Int) =
 getindex(c::OrderedCategory, v::UnitRange{Int64}) =
     getindex(c.index:c.index + c.n_items - 1, v)
 
-iterate(c::OrderedCategory, args...) = 
+iterate(c::OrderedCategory, args...) =
     iterate(c.index:c.index + c.n_items - 1, args...)
-
-
 
 
 """
@@ -465,3 +486,26 @@ valid, i.e., for there to be a maximum of `(n - 1) * threshold` remaining
 items.
 """
 required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
+
+
+"""
+    struct Conflicts{T <: AbstractGraph} <: Constraint
+
+A kind of constraint -- or set of constraints -- that indicates that certain
+items conflict, and thus cannot be allocated to the same agent. The
+constraints are represented as a *conflict graph*
+(`LightGraphs.AbstractGraph`), with items as nodes, and edges representing
+conflicts. The `Conflicts` type is just a wrapper for dispatch purposes, with
+the underlying graph available through the `graph` accessor.
+"""
+struct Conflicts{T <: AbstractGraph} <: Constraint
+    graph::T
+end
+
+
+"""
+    graph(C::Conflicts)
+
+Return the conflict graph wrapped by a `Conflicts` object.
+"""
+graph(C::Conflicts) = C.graph
