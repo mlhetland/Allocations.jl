@@ -324,6 +324,24 @@ end
 
     end
 
+    @testset "EFX" begin
+
+        V = V₀
+
+        res = alloc_efx(V)
+
+        A = res.alloc
+
+        @test res.model isa JuMP.Model
+        @test A isa Allocation
+
+        @test check_partition(A)
+        @test check_complete(A)
+
+        @test check_efx(V, A)
+
+    end
+
     @testset "Maximin" begin
 
         V = V₀

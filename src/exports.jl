@@ -9,6 +9,7 @@ export
     agents,
     agents,
     alloc_ef1,
+    alloc_efx,
     alloc_half_mms,
     alloc_mgg,
     alloc_mm,

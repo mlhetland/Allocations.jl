@@ -270,6 +270,38 @@ function enforce_ef1(ctx)
 end
 
 
+# Enforce envy-freeness up to any object (EFX) on the JuMP model.
+function enforce_efx(ctx)
+
+    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+
+    N, M = agents(V), items(V)
+
+    for i in N, j in N
+
+        i == j && continue
+
+        # Agent i's value for her own bundle
+        vii = sum(value(V, i, g) * A[i, g] for g in M)
+
+        # For each possiblye dropped item d ...
+        for d in M
+
+            # Agent i's value for j's bundle, without d
+            vijx = sum(value(V, i, g) * A[j, g] for g in M if g ≠ d)
+
+            # No envy, once d is dropped
+            @constraint(model, vii >= vijx)
+
+        end
+
+    end
+
+    return ctx
+
+end
+
+
 # Actual allocation methods
 
 
@@ -300,6 +332,31 @@ function alloc_ef1(V, C; solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     enforce_ef1 |>
+    enforce(C) |>
+    solve_mip |>
+    alloc_result
+
+end
+
+
+"""
+    alloc_efx(V[, C]; solver=conf.MIP_SOLVER)
+
+Create an `Allocation` that is envy-free up to any item (EFX), based on the
+valuation `V`, possibly subject to the constraints given by the `Constraint`
+object `C`. The solution is found using a straightforward mixed-integer program.
+The return value is a named tuple with the fields `alloc` (the `Allocation`) and
+`model` (the JuMP model used in the computation).
+
+Note that while some constraints may prevent an exact EFX allocation, it is
+currently (Mar 2021) an open question whether EFX always exists in the
+unconstrained case (see, e.g., [*Improving EFX Guarantees through Rainbow Cycle
+Number*](https://arxiv.org/abs/2103.01628) by Chaudhury et al.).
+"""
+function alloc_efx(V, C=nothing; solver=conf.MIP_SOLVER)
+
+    init_mip(V, solver) |>
+    enforce_efx |>
     enforce(C) |>
     solve_mip |>
     alloc_result
