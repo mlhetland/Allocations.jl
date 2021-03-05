@@ -1,4 +1,4 @@
-import Base: getindex, iterate, length, show, summary
+import Base: firstindex, getindex, in, iterate, lastindex, length, show, summary
 
 
 ##############################################################################
@@ -142,13 +142,27 @@ owner(A, g) = only(owners(A, g))
 
 
 """
-    give!(A, i, g)
+    give!(A, i, g::Int)
 
 Give agent `i` the object `g` in the `Allocation` `A`.
 """
-function give!(A, i, g)
+function give!(A, i, g::Int)
     push!(bundle(A, i), g)
     push!(owners(A, g), i)
+    return A
+end
+
+
+"""
+    give!(A, i, B)
+
+Give agent `i` the bundle `B` in the `Allocation` `A`.
+"""
+function give!(A, i, B)
+    union!(bundle(A, i), B)
+    for g in B
+        push!(owners(A, g), i)
+    end
     return A
 end
 
@@ -312,11 +326,20 @@ value_x(V::Additive, i, S) =
 
 
 """
-    value!(V::Additive, i, j::Int, v)
+    value!(V::Additive, i, g::Int, v)
 
-Set the value of item `j`, according to agent `i`, to `v`.
+Set the value of item `g`, according to agent `i`, to `v`.
 """
-value!(V::Additive, i, j, v) = V.values[i, j] = v
+value!(V::Additive, i, g, v) = V.values[i, g] = v
+
+
+"""
+    normalize(V)
+
+Scale the values of `V` such that ``v_i(M) = n`` for all agents ``i``.
+"""
+normalize(V::Additive) =
+    Additive(V.values .* [na(V) / value(V, i, items(V)) for i in agents(V)])
 
 
 ## Constraints ###############################################################
@@ -346,6 +369,7 @@ end
 
 
 iterate(c::Category, args...) = iterate(c.members, args...)
+length(c::Category) = length(c.members)
 
 
 """
@@ -384,3 +408,60 @@ Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
 getindex(C::Counts, i) = C.categories[i]
 length(C::Counts) = length(C.categories)
 iterate(C::Counts, args...) = iterate(C.categories, args...)
+
+
+"""
+    mutable struct OrderedCategory
+
+Used in place of `Category` when handling an ordered instance. The instance is
+assumed to be such that items in the range `index:index + n_items - 1` belong to
+the given category, i.e., the items of a category occupy a contiguous range of
+integers.
+"""
+mutable struct OrderedCategory
+    index::Int
+    n_items::Int
+    threshold::Int
+end
+
+
+in(g, c::OrderedCategory) = c.index <= g < c.index + c.n_items
+lastindex(c::OrderedCategory) = length(c)
+length(c::OrderedCategory) = c.n_items
+
+getindex(c::OrderedCategory, i::Int) =
+    getindex(c.index:c.index + c.n_items - 1, i)
+
+getindex(c::OrderedCategory, v::UnitRange{Int64}) =
+    getindex(c.index:c.index + c.n_items - 1, v)
+
+iterate(c::OrderedCategory, args...) = 
+    iterate(c.index:c.index + c.n_items - 1, args...)
+
+
+
+
+"""
+    floor_n(c::OrderedCategory, n)
+
+One `n`th of the number of items in the category, rounded down.
+"""
+floor_n(c::OrderedCategory, n) = floor(Int, c.n_items/n)
+
+
+"""
+    ceil_n(c::OrderedCategory, n)
+
+One `n`th of the number of items in the category, rounded up.
+"""
+ceil_n(c::OrderedCategory, n) = ceil(Int, c.n_items/n)
+
+
+"""
+    required(c::OrderedCategory, n)
+
+The number of items the next agent must take in order to keep the instance
+valid, i.e., for there to be a maximum of `(n - 1) * threshold` remaining
+items.
+"""
+required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)

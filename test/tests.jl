@@ -32,14 +32,17 @@ function runtests()
 
             @test string(A) == "[{2}, {3, 4}, {}]"
 
-            @test 4 in bundle(A, 2)
+            give!(A, 3, [1, 5])
 
+            @test string(A) == "[{2}, {3, 4}, {1, 5}]"
+
+            @test 4 in bundle(A, 2)
 
             deny!(A, 2, 4)
 
-            @test string(A) == "[{2}, {3}, {}]"
+            @test string(A) == "[{2}, {3}, {1, 5}]"
             @test summary(A) == "Allocation with 3 agents and 5 items, " *
-                                "3 unallocated"
+                                "1 unallocated"
 
             deny!(A, 2, 3)
 
@@ -247,6 +250,65 @@ end
 
         @test string(res.alloc) == "[{3}, {1, 2}]"
 
+    end
+
+end
+
+@testset "MMS Approximation" begin
+
+    n, m = 4, 12
+    X = rand(1:10, n, m)
+    V = Additive(X)
+
+    @testset "1/2-approximate MMS with cardinality constraints" begin
+
+        function test_cardinality_constraints_half_mms(V, C)
+            A = alloc_half_mms(V, C)
+
+            @test A isa Allocation
+            # Test that all items are allocated properly
+            for g in items(V)
+                @test owner(A, g) isa Int
+            end
+
+            # The allocation must not break the cardinality constraints
+            for i in agents(V), c in C
+                @test sum(owner(A, g) == i for g in c) <= threshold(c)
+            end
+
+            for i in agents(V)
+                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C)
+            end
+
+        end
+
+        C = Counts(
+            [1, 3, 7, 9]          => 1,
+            [4, 6, 8, 10, 11, 12] => 3,
+            [2, 5]                => 2,
+        )
+
+        test_cardinality_constraints_half_mms(V, C)
+
+        # The second half of the bag filling algorithm, where the floor_n(C)
+        # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
+        # used instead, does not often get ran when a random instance is
+        # created. Thus, this tests the workings of that part
+
+        C = Counts(
+            [1, 5, 6]           => 3,
+            [2]                 => 1,
+            [3]                 => 1,
+            [4]                 => 3,
+            [7, 8, 9, 10]       => 5,
+        )
+
+        V = Additive([
+            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
+            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
+        ])
+
+        test_cardinality_constraints_half_mms(V, C)
     end
 
 end
