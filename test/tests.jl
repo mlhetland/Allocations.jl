@@ -221,31 +221,43 @@ end
 
 @testset "MIPs" begin
 
-    n, m = 3, 15
-    X = rand(1:10, n, m)
-    V = Additive(X)
+    V₀ = Additive(rand(1:10, 3, 15))
 
     @testset "MNW" begin
 
-        res = alloc_mnw(V)
+        V = V₀
 
-        @test res.alloc isa Allocation
-        @test check_ef1(V, res.alloc)
-        @test res.mnw > 0
+        let res = alloc_mnw(V)
 
-        res = alloc_mnw([1 2 3; 4 3 1])
+            @test res.alloc isa Allocation
+            @test check_ef1(V, res.alloc)
+            @test res.mnw > 0
 
-        @test string(res.alloc) == "[{3}, {1, 2}]"
-        @test res.mnw ≈ 3 * (4 + 3)
+        end
 
-        @test res.model isa JuMP.Model
+        let res = alloc_mnw([1 2 3; 4 3 1])
+
+            @test string(res.alloc) == "[{3}, {1, 2}]"
+            @test res.mnw ≈ 3 * (4 + 3)
+
+            @test res.model isa JuMP.Model
+
+        end
 
     end
 
-    @testset "MNW with conflicts" begin
+    @testset "MNW with constraints" for C in [
+            Conflicts(path_graph(ni(V₀))),
+            Counts(
+                [1, 2, 3, 4]     => 3,
+                [5, 6, 7]        => 2,
+                [8, 9, 10]       => 2,
+                [11, 12, 13, 14] => 3,
+                [15]             => 1
+            )
+        ]
 
-        G = path_graph(m)
-        C = Conflicts(G)
+        V = V₀
 
         res = alloc_mnw(V)
         resc = alloc_mnw(V, C)
@@ -312,30 +324,9 @@ end
 
     end
 
-    @testset "MNW with constraints" begin
-
-        C = Counts(
-            [1, 2, 3, 4]     => 3,
-            [5, 6, 7]        => 2,
-            [8, 9, 10]       => 2,
-            [11, 12, 13, 14] => 3,
-            [15]             => 1
-        )
-
-        res = alloc_mnw(V)
-        resc = alloc_mnw(V, C)
-
-        @test check(V, resc.alloc, C)
-
-        @test resc.alloc isa Allocation
-        @test resc.mnw > 0
-
-        # Adding constraint can't improve objective.
-        @test resc.mnw <= res.mnw
-
-    end
-
     @testset "Maximin" begin
+
+        V = V₀
 
         res = alloc_mm(V)
 
@@ -350,45 +341,68 @@ end
 
     @testset "MMS" begin
 
-        res = alloc_mms(V)
+        V = V₀
 
-        @test res.alloc isa Allocation
+        let res = alloc_mms(V)
 
-        res = alloc_mms([3 1 2; 4 4 5])
+            @test res.alloc isa Allocation
+            @test mms_alpha(V, res.alloc, res.mmss) ≈ res.alpha
 
-        @test res.model isa JuMP.Model
-        @test length(res.mms_models) == 2
-        @test all(isa.(res.mms_models, JuMP.Model))
+        end
 
-        @test res.alpha ≈ 1.0
-        @test res.mmss ≈ [3.0, 5.0]
+        let res = alloc_mms([3 1 2; 4 4 5])
 
-        res = alloc_mms([2 1; 1 2])
+            @test res.model isa JuMP.Model
+            @test length(res.mms_models) == 2
+            @test all(isa.(res.mms_models, JuMP.Model))
 
-        @test res.alpha ≈ 2.0
+            @test res.alpha ≈ 1.0
+            @test res.mmss ≈ [3.0, 5.0]
 
-        res = alloc_mms([2 1; 1 2], cutoff=true)
+        end
 
-        @test res.alpha ≈ 1.0
+        let res = alloc_mms([2 1; 1 2])
 
-        @test mms_alpha(V, res.alloc, res.mmss) ≈ res.alpha
+            @test res.alpha ≈ 2.0
+
+        end
+
+        let res = alloc_mms([2 1; 1 2], cutoff=true)
+
+            @test res.alpha ≈ 1.0
+
+        end
 
     end
 
     @testset "MGG" begin
 
-        res = alloc_mgg(V)
+        V = V₀
 
-        @test res.alloc isa Allocation
-        @test res.model isa JuMP.Model
+        let res = alloc_mgg(V)
 
-        res = alloc_mgg([1 1 3; 1 1 2])
+            @test res.alloc isa Allocation
+            @test res.model isa JuMP.Model
 
-        @test string(res.alloc) == "[{3}, {1, 2}]"
+        end
+
+        let res = alloc_mgg([1 1 3; 1 1 2])
+
+            @test string(res.alloc) == "[{3}, {1, 2}]"
+
+        end
 
     end
 
+end
+
+@testset "Algorithms" begin
+
+    V₀ = Additive(rand(1:10, 4, 12))
+
     @testset "Random" begin
+
+        V = V₀
 
         res = alloc_rand(V)
 
@@ -421,18 +435,12 @@ end
 
     end
 
+    @testset "1/2-MMS with card. constr." begin
 
-end
-
-@testset "MMS Approximation" begin
-
-    n, m = 4, 12
-    X = rand(1:10, n, m)
-    V = Additive(X)
-
-    @testset "1/2-approximate MMS with cardinality constraints" begin
+        V = V₀
 
         function test_cardinality_constraints_half_mms(V, C)
+
             A = alloc_half_mms(V, C)
 
             @test A isa Allocation
@@ -447,38 +455,47 @@ end
             end
 
             for i in agents(V)
-                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C)
+                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C).mms
             end
 
         end
 
-        C = Counts(
-            [1, 3, 7, 9]          => 1,
-            [4, 6, 8, 10, 11, 12] => 3,
-            [2, 5]                => 2,
-        )
+        let
 
-        test_cardinality_constraints_half_mms(V, C)
+            C = Counts(
+                [1, 3, 7, 9]          => 1,
+                [4, 6, 8, 10, 11, 12] => 3,
+                [2, 5]                => 2,
+            )
+
+            test_cardinality_constraints_half_mms(V, C)
+
+        end
 
         # The second half of the bag filling algorithm, where the floor_n(C)
         # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
         # used instead, does not often get ran when a random instance is
         # created. Thus, this tests the workings of that part
 
-        C = Counts(
-            [1, 5, 6]           => 3,
-            [2]                 => 1,
-            [3]                 => 1,
-            [4]                 => 3,
-            [7, 8, 9, 10]       => 5,
-        )
+        let
 
-        V = Additive([
-            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
-            0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
-        ])
+            C = Counts(
+                [1, 5, 6]           => 3,
+                [2]                 => 1,
+                [3]                 => 1,
+                [4]                 => 3,
+                [7, 8, 9, 10]       => 5,
+            )
 
-        test_cardinality_constraints_half_mms(V, C)
+            V = Additive([
+                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
+                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
+            ])
+
+            test_cardinality_constraints_half_mms(V, C)
+
+        end
+
     end
 
 end
