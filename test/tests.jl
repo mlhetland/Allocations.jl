@@ -324,29 +324,25 @@ end
 
     end
 
-    #=
     @testset "EFX" begin
 
         V = V₀
 
-        let res = alloc_efx(V)
+        alloc_efx([1 1 1; 1 1 1]) # Bug fix: EFX but not EF
 
-            A = res.alloc
+        res = alloc_efx(V)
 
-            @test res.model isa JuMP.Model
-            @test A isa Allocation
+        A = res.alloc
 
-            @test check_partition(A)
-            @test check_complete(A)
+        @test res.model isa JuMP.Model
+        @test A isa Allocation
 
-            @test check_efx(V, A)
+        @test check_partition(A)
+        @test check_complete(A)
 
-        end
-
-        alloc_efx([1 1 1; 1 1 1]) # Bug fix
+        @test check_efx(V, A)
 
     end
-    =#
 
     @testset "Maximin" begin
 

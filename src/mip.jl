@@ -273,8 +273,6 @@ end
 # Enforce envy-freeness up to any object (EFX) on the JuMP model.
 function enforce_efx(ctx)
 
-    @warn "Buggy -- currently equivalent to EF"
-
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
     N, M = agents(V), items(V)
@@ -286,8 +284,8 @@ function enforce_efx(ctx)
         # Agent i's value for her own bundle
         vii = sum(value(V, i, g) * A[i, g] for g in M)
 
-        # XXX This doesn't work, as it'll also include constraints where we skip
-        # objects outside j's bundle:
+        # Value large enough to skip the constraint:
+        huge = value(V, i, M)
 
         # For each possibly dropped item d ...
         for d in M
@@ -295,8 +293,11 @@ function enforce_efx(ctx)
             # Agent i's value for j's bundle, without d
             vijx = sum(value(V, i, g) * A[j, g] for g in M if g ≠ d)
 
-            # No envy, once d is dropped
-            @constraint(model, vii >= vijx)
+            # If d isn't allocated to j, we skip this constraint:
+            skip = huge * (1 - A[j, d])
+
+            # No envy, once d is dropped (or if d isn't assigned to j):
+            @constraint(model, vii + skip >= vijx)
 
         end
 
