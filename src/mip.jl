@@ -162,7 +162,7 @@ end
 # Set up objective and constraints to make sure the JuMP model produces a
 # minimum ordered weighted average, by utility rank, using wt as the weight
 # function (cf., Lesca & Perny, 2010)
-achieve_mgg(wt) = function(ctx)
+achieve_ggi(wt) = function(ctx)
 
     V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
 
@@ -567,13 +567,13 @@ alloc_mms(V::Matrix, C=nothing; cutoff=false, solver=conf.MIP_SOLVER) =
 
 
 # Extract the allocation at the end of the pipeline.
-function mgg_result(ctx)
+function ggi_result(ctx)
     return (alloc=ctx.alloc, model=ctx.model, ctx.res...)
 end
 
 
 """
-    wt_gini(n, i)
+    wt_gini(i, n)
 
 The (unnormalized) weights used in the ordered weighted average in the Gini
 social-evaluation function, where the utility of the `i`th agent, ordered by
@@ -585,25 +585,36 @@ wt_gini(i, n) = 2(n - i) + 1
 
 
 """
-    alloc_mgg(V[, C]; wt=wt_gini, solver=conf.MIP_SOLVER)
+    alloc_ggi(V[, C]; wt=wt_gini, solver=conf.MIP_SOLVER)
 
-Minimizes the generalized Gini social-evaluation function, or other ordered
-weighted averages of agent utilities, where the weight is based on utility
-rank `i`, from the least happy (`1`) to the most happy (`n`), parameterized by
-the function `wt(i, n)`. The method used is based on that of Lesca and Perny
-(linear formulation ``\\Pi'_W``, without ``\\alpha``, ``\\alpha'``, ``\\beta``
-and ``\\beta'``) in their paper 2010 paper [LP Solvable Models for Multiagent
-Fair Allocation
-Problems](https://pdfs.semanticscholar.org/c6ae/41213e5744ec0a1cca632155a42a46f8b2ad.pdf).
-The return value is a named tuple with the fields `alloc` (the `Allocation`
-that has been produced) and `model` (the JuMP model used in the computation).
+Maximizes a generalized Gini index (GGI), also known as a generalized Gini
+social-evaluation functions. The function being maximized is an ordered weighted
+average (OWA) of agent utilities, utilities, where the weight is based on
+utility rank `i`, from the least happy (`1`) to the most happy (`n`),
+parameterized by the function `wt(i, n)`. It is generally assumed that the
+weights are nondecreasing in `i`. Note that there is no need to use normalized
+weights (i.e., to produce a weighted average, despite the term OWA), as is often
+the case when such measures are used to measure *in*equality (e.g., by
+subtracting the OWA from an ordinary average, cf. [“Generalized gini inequality
+indices”](https://doi.org/10.1016/0165-4896(81)90018-4) by John A. Weymark).
+
+The default `wt_gini` gives the (non-normalized) weights of the original Gini
+social-evaluation. Two other notable cases for `wt` are `(i, _) -> i == 1`,
+which yields a maximin allocation, and `(i, _) -> 1`, which yields a purely
+utilitarian allocation (with no consideration for fairness). The solution method
+used is based on that of Lesca and Perny (linear formulation ``\\Pi'_W``,
+without ``\\alpha``, ``\\alpha'``, ``\\beta`` and ``\\beta'``) in their paper
+2010 paper [“LP Solvable Models for Multiagent Fair Allocation
+Problems”](https://doi.org/10.3233/978-1-60750-606-5-393). The return value is a
+named tuple with the fields `alloc` (the `Allocation` that has been produced)
+and `model` (the JuMP model used in the computation).
 """
-function alloc_mgg(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
+function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
-    achieve_mgg(wt) |>
+    achieve_ggi(wt) |>
     enforce(C) |>
     solve_mip |>
-    mgg_result
+    ggi_result
 
 end
