@@ -22,7 +22,7 @@ To specify an allocation problem instance, create a `Valuation`:
 
     Note that the first time you call an allocation function, it may take some
     time to finish, because there's quite a lot of compilation going on behind
-    the scenes. From then one, in the same REPL session, there will be much less
+    the scenes. From then on, in the same REPL session, there will be much less
     overhead.
 
 These functions take a `Valuation` as input and return a named tuple with the
