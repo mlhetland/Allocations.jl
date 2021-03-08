@@ -14,23 +14,30 @@ To specify an allocation problem instance, create a `Valuation`:
 
 `Valuation` is an abstract class, and `Valuation(X::Matrix)` is an alias for
 `Additive(X)`. Once you have a valuation, you can use an allocation function
-(ones `alloc_...`), e.g., for finding a maximin (MM) allocation:
+(ones `alloc_...`), e.g., for finding a maximum Nash welfare (MNW) allocation:
 
-    julia> res = alloc_mm(V);
+    julia> res = alloc_mnw(V);
+
+!!! note
+
+    Note that the first time you call an allocation function, it may take some
+    time to finish, because there's quite a lot of compilation going on behind
+    the scenes. From then one, in the same REPL session, there will be much less
+    overhead.
 
 These functions take a `Valuation` as input and return a named tuple with the
 field `alloc` referring to an `Allocation`:
 
     julia> A = res.alloc
     Allocation with 2 agents and 3 items:
-      1 => {1, 3}
-      2 => {2}
+      1 => {3}
+      2 => {1, 2}
 
 The bundles of each agent is available through the `bundle` function:
 
-    julia> bundle(A, 1)
+    julia> bundle(A, 2)
     Set{Int64} with 2 elements:
-      3
+      2
       1
 
 !!! note
@@ -41,20 +48,20 @@ The bundles of each agent is available through the `bundle` function:
 
 Some allocation functions may produce other results as well, such as
 properties of the allocation that are naturally computed as part of the
-allocation process. For the maximin case, the objective value (the minimum
-utility, which is being maximized) is available as `mm`:
+allocation process. For the MNW case, the objective value (the Nash welfare,
+which is being maximinzed) is available as `mnw`:
 
-    julia> res.mm
-    3.0
+    julia> res.mnw
+    15.0
 
 The allocation functions also permit a matrix argument as a shortcut,
-implicitly creating an `Additive`. For example, you can find a maximum Nash
-welfare (MNW) allocation as follows:
+implicitly creating an `Additive`. For example, you can find a maximin share
+(MMS) allocation as follows:
 
-    julia> alloc_mnw([1 1 2 3; 2 1 2 3]).alloc
+    julia> alloc_mms([1 1 2 3; 2 1 2 3]).alloc
     Allocation with 2 agents and 4 items:
-      1 => {2, 4}
-      2 => {1, 3}
+      1 => {2, 3}
+      2 => {1, 4}
 
 Several allocation functions use mixed-integer linear programming via
 [JuMP](https://jump.dev). Depending on the choice of MIP solver, solving even
