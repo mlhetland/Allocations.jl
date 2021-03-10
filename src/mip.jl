@@ -608,6 +608,14 @@ without ``\\alpha``, ``\\alpha'``, ``\\beta`` and ``\\beta'``) in their paper
 Problems”](https://doi.org/10.3233/978-1-60750-606-5-393). The return value is a
 named tuple with the fields `alloc` (the `Allocation` that has been produced)
 and `model` (the JuMP model used in the computation).
+
+In the original inequality measures, the mean agent utility is included as a
+normalizing term, which is harmless for the case of identical valuations (and
+when looking at, say, the distribution of incomes), but when valuations differ,
+this mean will vary with the allocations. As pointed out by Lesca and Perny,
+such a measure is not monotone with Pareto dominance -- the optimization will
+tend to drive the mean utility *down*. Therefore only the term measuring
+(in)equality (i.e., the ordered weighted sum of agent utilities) is used.
 """
 function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 
