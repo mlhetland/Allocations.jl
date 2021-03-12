@@ -1,3 +1,16 @@
+# Social welfare functions
+
+
+"""
+    utility(V, A)
+
+Compute the utilitarian welfare of the allocation `A`, given the valuation `V`,
+i.e., the sum of the individual agent utilities (i.e., the bundle values)
+resulting from `A`.
+"""
+utility(V, A) = sum(value(V, i, A) for i in agents(V))
+
+
 """
     nash_welfare(V, A; nonzero=true)
 
@@ -15,6 +28,9 @@ function nash_welfare(V, A; nonzero=true)
     end
     return isempty(x) ? 0.0 : prod(x)
 end
+
+
+# Approximation factors
 
 
 """

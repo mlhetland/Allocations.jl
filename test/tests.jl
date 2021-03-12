@@ -209,13 +209,14 @@ end
 
 @testset "Measures" begin
 
-    V = Additive([1 2; 2 1])
+    V = Additive([1 3; 3 1])
     A = Allocation(2, 2)
     give!(A, 1, 2)
     give!(A, 2, 1)
 
-    @test nash_welfare(V, A) ≈ 4
-    @test prop_alpha(V, A) ≈ 2 / (3 / 2)
+    @test nash_welfare(V, A) ≈ 9
+    @test utility(V, A) ≈ 6
+    @test prop_alpha(V, A) ≈ 3 / (4 / 2)
 
 end
 

@@ -42,5 +42,6 @@ export
     prop_alpha,
     required,
     threshold,
+    utility,
     value!,
     value
