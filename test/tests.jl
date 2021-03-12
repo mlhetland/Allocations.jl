@@ -396,18 +396,18 @@ end
 
     end
 
-    @testset "MGG" begin
+    @testset "GGI" begin
 
         V = V₀
 
-        let res = alloc_mgg(V)
+        let res = alloc_ggi(V)
 
             @test res.alloc isa Allocation
             @test res.model isa JuMP.Model
 
         end
 
-        let res = alloc_mgg([1 1 3; 1 1 2])
+        let res = alloc_ggi([1 1 3; 1 1 2])
 
             @test string(res.alloc) == "[{3}, {1, 2}]"
 
