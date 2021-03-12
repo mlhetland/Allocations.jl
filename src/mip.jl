@@ -107,7 +107,7 @@ achieve_mnw(mnw_warn) = function(ctx)
                 mnw_prec = false
                 !mnw_warn && continue
             end
-            @warn("Precision insufficient to guarantee $name")
+            @warn("Precision possibly insufficient to guarantee $name")
         end
     end
 
