@@ -405,8 +405,8 @@ appropriate warning will be issued, but the computation is not halted. Note that
 these warnings are quite conservative (see note below). This is particularly
 true of the one for MNW, which is disabled by default, in part because of its
 sensitivity, and in part because it will generally be useful to find solutions
-that satisfy PO and EF1, even if it may not be exactly MNW. The warning can be
-enabled by setting the `mnw_warn` keyword to `true`.
+that satisfy PO and EF1, even if it may not be exactly MNW. The MNW warning can
+be enabled by setting the `mnw_warn` keyword to `true`.
 
 !!! note
 
@@ -415,18 +415,14 @@ enabled by setting the `mnw_warn` keyword to `true`.
     floating-point precision is sufficient; any tolerance or gap used by the
     solver is not used, which might in principle mean that false negative are
     possible. On the other hand, these bounds, especially the one for exact MNW,
-    may in practice be extremely loose. For example, the one for MNW is based on
-    the difference in Nash welfare between `1000^n` and `1000^n - 1`, where
-    `1000` is the maximum for any agent. However, rather than `1000^n - 1`, the
-    closest objective value is actually `1000^n - 1000^(n-1)`. While the
-    difference in objective may be smaller in other cases, it will generally
-    tend to be much, much higher than the lower bound used to trigger the
-    warning.
+    may in practice be quite loose, with small variations in agent utilities
+    leading to large changes in objective value, unless the changes are finely
+    tuned to cancel out.
 
 The return value is a named tuple with fields `alloc` (the `Allocation`),
 `mnw` (the achieved Nash welfare for the agents with nonzero utility),
-`mnw_prec` (whether or not there was enough precision to find MNW) and `model`
-(the JuMP model used in the computation).
+`mnw_prec` (whether or not there was enough precision to satisfy the lower bound
+guaranteeing exact MNW) and `model` (the JuMP model used in the computation).
 """
 function alloc_mnw(V, C=nothing; mnw_warn=false, solver=conf.MIP_SOLVER)
 
