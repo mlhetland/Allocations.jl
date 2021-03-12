@@ -383,7 +383,7 @@ end
 
 
 """
-    alloc_mnw(V[, C]; mnw_warn=true, solver=conf.MIP_SOLVER)
+    alloc_mnw(V[, C]; mnw_warn=false, solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
 valuation `V`, possibly subject to the constraints given by the `Constraint`
@@ -398,20 +398,37 @@ Welfare](https://doi.org/10.1145/3355902), with two minor modifications:
 2. Extra constraints are permitted (through the object `C`), possibly lowering
    the attainable MNW.
 
-Because of how the integer program is constructed, it is sensitive to
-precision effects, where a high number of agents, can make it impossible to
-guarantee Pareto optimalty (PO), EF1 or MNW respectively. If the precision is
-too low, the appropriate warning will be issued, but the computation is not
-halted. It may be useful to find a solution that is guaranteed to satisfy PO and
-EF1, even if it may not be exactly MNW. For such cases, the `mnw_warn` keyword
-argument may be set to `false`, to suppress the MNW warning.
+Because of how the integer program is constructed, it may be affected by
+precision effects, where a high number of agents can make it impossible to
+guarantee Pareto optimalty (PO), EF1 or MNW. If the precision is too low, the
+appropriate warning will be issued, but the computation is not halted. Note that
+these warnings are quite conservative (see note below). This is particularly
+true of the one for MNW, which is disabled by default, in part because of its
+sensitivity, and in part because it will generally be useful to find solutions
+that satisfy PO and EF1, even if it may not be exactly MNW. The warning can be
+enabled by setting the `mnw_warn` keyword to `true`.
+
+!!! note
+
+    The warnings are based on the lower bounds described by Caragiannis et al.
+    On the one hand, the bound is only used to test whether current
+    floating-point precision is sufficient; any tolerance or gap used by the
+    solver is not used, which might in principle mean that false negative are
+    possible. On the other hand, these bounds, especially the one for exact MNW,
+    may in practice be extremely loose. For example, the one for MNW is based on
+    the difference in Nash welfare between `1000^n` and `1000^n - 1`, where
+    `1000` is the maximum for any agent. However, rather than `1000^n - 1`, the
+    closest objective value is actually `1000^n - 1000^(n-1)`. While the
+    difference in objective may be smaller in other cases, it will generally
+    tend to be much, much higher than the lower bound used to trigger the
+    warning.
 
 The return value is a named tuple with fields `alloc` (the `Allocation`),
 `mnw` (the achieved Nash welfare for the agents with nonzero utility),
 `mnw_prec` (whether or not there was enough precision to find MNW) and `model`
 (the JuMP model used in the computation).
 """
-function alloc_mnw(V, C=nothing; mnw_warn=true, solver=conf.MIP_SOLVER)
+function alloc_mnw(V, C=nothing; mnw_warn=false, solver=conf.MIP_SOLVER)
 
     init_mip(V, solver) |>
     achieve_mnw(mnw_warn) |>
