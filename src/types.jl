@@ -262,6 +262,17 @@ function isnonnegative end
 
 
 """
+    matrix(V::Valuation)
+
+Return a matrix `X` where `X[i, g]` is `value(V, i, g)`. May not be very useful
+in general (especially if calculating single-item values isn't efficient to
+begin with), but if such a matrix is available as part of the valuation
+implementation (as with `Additive`), it may be returned directly.
+"""
+matrix(V::Valuation) = [value(V, i, g) for i in agents(V), g in items(V)]
+
+
+"""
     struct Additive{T <: AbstractMatrix} <: Valuation
 
 An additive valuation oracle, representing how each agent values all possible
@@ -354,6 +365,14 @@ value_x(V::Additive, i, S) =
 Set the value of item `g`, according to agent `i`, to `v`.
 """
 value!(V::Additive, i, g, v) = V.values[i, g] = v
+
+
+"""
+    matrix(V::Additive)
+
+Return the underlying valuation matrix of `V`.
+"""
+matrix(V::Additive) = V.values
 
 
 """

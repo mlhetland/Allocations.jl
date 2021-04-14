@@ -89,9 +89,7 @@ achieve_mnw(mnw_warn) = function(ctx)
     @assert isintegral(V)
     @assert isnonnegative(V)
 
-    positive = [value(V, i, j) > 0 for i in agents(V), j in items(V)]
-
-    N = [i for (i, g) in bipartite_matching(positive)]
+    N = [i for (i, g) in bipartite_matching(matrix(V))]
 
     M = items(V)
 
