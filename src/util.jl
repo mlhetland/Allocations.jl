@@ -1,6 +1,6 @@
 # Bipartite mathcing using an LP solver, for simplicity (as we're using a MIP
 # solver elsewhere, anyway). `X` should be a boolean matrix, where `X[i, j]`
-# indicates an edge between `i` and `j`. The `solver` argument should be JuMP
+# indicates an edge between `i` and `j`. The `solver` argument should be a JuMP
 # optimizer factory.
 function bipartite_matching(X, solver=conf.MIP_SOLVER)
 
