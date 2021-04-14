@@ -91,9 +91,7 @@ achieve_mnw(mnw_warn) = function(ctx)
 
     positive = [value(V, i, j) > 0 for i in agents(V), j in items(V)]
 
-    matching = bipartite_matching(positive, ctx.solver)
-
-    N = findall(vec(any(matching, dims=2)))
+    N = [i for (i, g) in bipartite_matching(positive)]
 
     M = items(V)
 

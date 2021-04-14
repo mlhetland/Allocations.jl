@@ -148,7 +148,11 @@ end
              0 0 1 1 0 0
              0 0 0 0 0 1]
 
-        M = bipartite_matching(Bool.(X))
+        # M = bipartite_matching(Bool.(X))
+        M = falses(size(X))
+        for (i, g) in bipartite_matching(X)
+            M[i, g] = true
+        end
 
         @test all(sum(M, dims=1) .<= 1)
         @test all(sum(M, dims=2) .<= 1)

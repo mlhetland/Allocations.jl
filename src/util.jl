@@ -1,33 +1,34 @@
-# Bipartite mathcing using an LP solver, for simplicity (as we're using a MIP
-# solver elsewhere, anyway). `X` should be a boolean matrix, where `X[i, j]`
-# indicates an edge between `i` and `j`. The `solver` argument should be a JuMP
-# optimizer factory.
-function bipartite_matching(X, solver=conf.MIP_SOLVER)
-
-    model = Model(solver)
+# Bipartite matching, using the Ford–Fulkerson algorithm (with DFS). (Algorithms
+# with better asymptotic running time exist, but they may not be more efficient
+# in practice, and they tend to be quite a bit more complex.) `X` should be a
+# matrix where `X[i, g] ≠ 0` indicates an edge between `i` and `j`. I.e., this
+# may be a boolean matrix, or any other numeric matrix where a matching along
+# nonzero values (e.g., using the valuation matrix directly in the case of MNW)
+# is desired. The function returns an iterator over pairs `(i => g)`,
+# indicating that `i` is matched with `g`.
+function bipartite_matching(X)
 
     n, m = size(X)
 
-    @variable(model, x[1:n, 1:m] >= 0)
+    mate, seen = zeros(Int, m), falses(m)
 
-    for i = 1:n, j = 1:m
-        X[i, j] || fix(x[i, j], 0, force=true)
+    function match!(i)
+        for g = 1:m
+            (iszero(X[i, g]) || seen[g]) && continue
+            seen[g] = true
+            if mate[g] == 0 || match!(mate[g])
+                mate[g] = i
+                return true
+            end
+        end
+        return false
     end
 
     for i = 1:n
-        @constraint(model, sum(x[i, j] for j = 1:m) <= 1)
+        seen .= false
+        match!(i)
     end
 
-    for j = 1:m
-        @constraint(model, sum(x[i, j] for i = 1:n) <= 1)
-    end
-
-    @objective(model, Max, sum(x))
-
-    optimize!(model)
-
-    @assert termination_status(model) == MOI.OPTIMAL
-
-    return JuMP.value.(x) .≈ 1.0
+    return ((i => g) for (g, i) in pairs(mate) if i ≠ 0)
 
 end
