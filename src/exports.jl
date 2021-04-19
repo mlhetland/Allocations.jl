@@ -38,6 +38,7 @@ export
     nash_welfare,
     ni,
     normalize,
+    owned,
     owner,
     prop_alpha,
     required,
