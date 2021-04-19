@@ -32,3 +32,6 @@ function bipartite_matching(X)
     return ((i => g) for (g, i) in pairs(mate) if i ≠ 0)
 
 end
+
+
+bipartite_matching(X::Valuation) = bipartite_matching(matrix(X))

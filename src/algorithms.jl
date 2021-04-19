@@ -84,7 +84,8 @@ end
 
 A straightforward lottery that allocates the items randomly to the agents. For
 each item, its agent is selected uniformly at random. The valuation `V` is not
-used, other than to determine the number of agents and items.
+used, other than to determine the number of agents and items. The return value
+is a named tuple with the field `alloc` (the `Allocation`).
 """
 alloc_rand(V) = alloc_rand(na(V), ni(V))
 
@@ -193,5 +194,162 @@ function alloc_rand(n::Int, m::Int, C::Conflicts)
     end
 
     return (alloc=A,)
+
+end
+
+
+# The original descriptions of the following algorithm leaves a great latitude
+# in how one actually implements it. The gist of the procedure is a local
+# search, where an allocation is incrementally improved along paths in a graph,
+# which has edges added or removed as items are reallocated. Here one might,
+# e.g., use one of the structures developed for dynamically updating transitive
+# closures. Because the graph in question is one with the agents as its
+# vertices, which means it will probably be quite small, any asymptotic
+# improvements could quite possibly be swamped by overhead. For now, things are
+# kept simple, with a fresh traversal for each agent pair.
+
+"""
+    alloc_bkv18_2(V::Valuation)
+
+The second algorithm (**Alg-Binary**) described by Barman, Krishnamurty and
+Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
+Welfare](https://doi.org/10.1145/3355902). The algorithm finds MNW allocations
+in polynomial time for binary additive valuations, i.e., where each agent values
+any given object at 0 or 1 (e.g., an `Additive{BitMatrix}`). It also works in a
+more general setting, where `value(V, i, S)`, for any given `i`, is a concave
+function of the number of items `g` in `S` for which `value(V, i, g) == 1`.
+
+The original algorithm builds on an initial allocation, but does not specify
+what this allocation should be. It also does not deal with the case where one or
+more agents ends up with zero utility; in fact the procedure will not work even
+if we start with two or more agents with zero utility in the intial allocation.
+The strategy followed here is the same as that of Caragiannis et al.
+(https://doi.org/10.1145/3355902), where a maximum cardinality set of agents
+achieving positive utility is found using bipartite matching (with no fairness
+considerations). The remaining items are randomly allocated to agents among
+these that value them, if any. Remaining agents and items are ignored by the
+procedure; in the end, the allocation is completed with `fill-even!` (which
+means that some agents that must necessarily get a utility of zero can still
+receive items valued zero, if that evens out the bundle cardinalities). The
+return value is a named tuple with the fields `alloc` (the `Allocation`) and
+`mnw` (the Nash welfare, ignoring agents with zero utility).
+"""
+function alloc_bkv18_2(V::Valuation)
+
+    n, m = na(V), ni(V)
+
+    # Tentative allocation, where O[g] is the owner of g. Will assign positive
+    # utility to as many agents as possible (the set N, found through maximum
+    # bipartite matching betewen agents and items they value), and will allocate
+    # items only to them.
+    O = zeros(Int, m)
+
+    N = Int[]
+    for (i, g) in bipartite_matching(V)
+        O[g] = i
+        push!(N, i)
+    end
+
+    M = Int[]
+    for g in 1:m
+        # To simplify the logic below, and ideally to reduce the number of
+        # iterations, we assign items only to agents who value them, if any. If
+        # no agents value an item, it will not participate in the procedure
+        # anyway, and is left unallocated until the end of the function.
+        fans = [i for i in N if value(V, i, g) > 0]
+        isempty(fans) && continue # Leave g unallocated for now
+        push!(M, g)
+        O[g] == 0 && (O[g] = rand(fans))
+    end
+
+    # U[i]: The utility of agent i
+    U = zeros(Int, n)
+    for g = M
+        i = O[g]
+        i == 0 && continue
+        U[i] += value(V, i, g)
+    end
+
+    # Pre-allocation
+    G = zeros(Int, n, n)
+    Π = zeros(Int, n, n)
+
+    # We should never need more than this (as shown by Barman, Krishnamurty and
+    # Vaish). We'll add one iteration, which should never be reached, as a
+    # failsafe (with an assertion, below the loop):
+    maxiter = ceil(Int, 2m*(n+1)*log(n*m))
+
+    it = 0
+    for outer it = 1:maxiter + 1
+
+        # A form of adjacency matrix, where any G[i, j] > 0 is an arbitrary item
+        # we may transfer from j to i.
+        G .= 0
+        for i in N, g in M
+            (value(V, i, g) > 0 || O[g] == i) && continue
+            G[i, O[g]] = g
+        end
+
+        # Predecessor matrix, where any Π[i, j] > 0 is the predecessor of j
+        # along the path (sequence of possible transfers) from i.
+        Π .= 0
+        for i in N, j in N
+            G[i, j] > 0 && (Π[i, j] = i)
+        end
+
+        # Straightforward version of Warshall's algorithm, using only Π and
+        # restricting nodes of interest to N, i.e., the agents with nonzero
+        # utility.
+        for k in N, i in N, j in N
+            (i == j || Π[i, j] > 0) && continue
+            if Π[i, k] > 0 && Π[k, j] > 0
+                Π[i, j] = Π[k, j]
+            end
+        end
+
+        # The augmentation procedure of Barman et al., except that we only care
+        # about agents with nonzero utility. Only items that are valued by at
+        # least one agent will be used in Π. Such items are initially allocated
+        # to agents that value them, and will remain so after each update, which
+        # means that transfering the item will necessarily increment U[i] and
+        # decrement U[j].
+        s = t = 0
+        best = 0
+        for i in N, j in N
+            @assert U[i] ≥ 1 && U[j] ≥ 1
+            (Π[i, j] > 0 && U[j] > 1) || continue
+            change = (U[i] + 1)*(U[j] - 1)/(U[i]*U[j])
+            if change > best
+                best = change
+                s, t = i, j
+            end
+        end
+
+        # No improvement, so we're done
+        best > 1 || break
+
+        # There was an improvement, and the transfer of one unit of utility.
+        U[s] += 1
+        U[t] -= 1
+
+        # Pass items back along path from s to t
+        while t ≠ s
+            @assert O[G[s, t]] == t
+            O[G[s, t]] = s
+            t = Π[s, t]
+        end
+
+    end
+
+    @assert it ≤ maxiter # Make sure we found optimum
+
+    A = Allocation(n, m)
+    for g in M
+        give!(A, O[g], g)
+    end
+
+    fill_even!(A) # Distribute the unvalued items
+
+    return (; alloc=A, mnw=nash_welfare(V, A))
 
 end

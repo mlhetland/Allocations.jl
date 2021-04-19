@@ -188,11 +188,34 @@ function deny!(A, i, g)
 end
 
 
+"""
+    fill_even!(A)
+
+Fill out the allocation by distributing the unallocated items evenly, in the
+sense of minimizing the maximum bundle cardinality.
+"""
+function fill_even!(A)
+    n, m = na(A), ni(A)
+    N = collect(agents(A))
+    b = [length(bundle(A, i)) for i in N]
+    t = ceil(Int, m/n)
+    sort!(N, by=i->b[i])
+    i = 1
+    for g = 1:m
+        owned(A, g) && continue
+        b[i] ≥ t && (i += 1)
+        b[i] += 1
+        give!(A, i, g)
+    end
+    return A
+end
+
+
 ## Valuations ################################################################
 
 
 """
-    struct Valuation <: Any
+    abstract struct Valuation <: Any
 
 An abstract type representing a valuation oracle. Which functions are used to
 query it depends on the kind of valuation functions it represents. Additive
@@ -208,8 +231,12 @@ abstract type Valuation end
 
 """
     value(V::Valuation, i, S)
+    value(V::Valuation, i, g::Int)
 
-The value agent `i` places on bundle `S`, according to the oracle `V`.
+The value agent `i` places on bundle `S`, according to the oracle `V`. The
+second form is a shortcut for `value(V, i, [g])`, which will generally be more
+efficient. Note that the value of `S` may *not* in general be the sum of the
+values of its items; that property is unique to `Additive` valuations.
 """
 function value end
 

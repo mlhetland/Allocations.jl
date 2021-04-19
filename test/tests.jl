@@ -59,6 +59,12 @@ function runtests()
 
             @test summary(A) == "Allocation with 3 agents and 5 items"
 
+            A = Allocation(2, 4)
+            give!(A, 2, 1)
+            fill_even!(A)
+            @test owner(A, 2) == 1
+            @test length(bundle(A, 1)) == length(bundle(A, 2)) == 2
+
         end
 
     end
@@ -457,6 +463,38 @@ end
         @test check_complete(A)
         @test check_partition(A)
         @test check(V, A, C)
+
+    end
+
+    @testset "BKV18(2)" begin
+
+        V = Valuation([1 1 0 1 0
+                       0 1 0 0 1
+                       1 1 1 0 1])
+
+        res = alloc_bkv18_2(V)
+        A = res.alloc
+
+        @test A isa Allocation
+        @test res.mnw == alloc_mnw(V).mnw
+
+        V = Valuation([1 0; 1 0; 0 1])
+
+        res = alloc_bkv18_2(V)
+        A = res.alloc
+        @test res.mnw == nash_welfare(V, A) == 1
+        @test nash_welfare(V, A, nonzero=false) == 0
+
+        @test alloc_bkv18_2(Valuation([0 0; 0 0])).mnw == 0
+
+        # Even distribution of unvalued items:
+        V = Valuation([1 1 0 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0])
+        res = alloc_bkv18_2(V)
+        @test res.mnw == 2
+        A = res.alloc
+        for i in agents(A)
+            @test length(bundle(A, i)) == 2
+        end
 
     end
 
