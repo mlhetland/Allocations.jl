@@ -228,7 +228,7 @@ The strategy followed here is the same as that of Caragiannis et al.
 achieving positive utility is found using bipartite matching (with no fairness
 considerations). The remaining items are randomly allocated to agents among
 these that value them, if any. Remaining agents and items are ignored by the
-procedure; in the end, the allocation is completed with `fill-even!` (which
+procedure; in the end, the allocation is completed with `fill_even!` (which
 means that some agents that must necessarily get a utility of zero can still
 receive items valued zero, if that evens out the bundle cardinalities). The
 return value is a named tuple with the fields `alloc` (the `Allocation`) and

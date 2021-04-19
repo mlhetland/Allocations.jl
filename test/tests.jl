@@ -488,12 +488,14 @@ end
         @test alloc_bkv18_2(Valuation([0 0; 0 0])).mnw == 0
 
         # Even distribution of unvalued items:
-        V = Valuation([1 1 0 0 0 0; 0 0 0 0 0 0; 0 0 0 0 0 0])
+        V = Valuation([1 1 1 0 0 0 0 0 0
+                       0 0 0 0 0 0 0 0 0
+                       0 0 0 0 0 0 0 0 0])
         res = alloc_bkv18_2(V)
-        @test res.mnw == 2
+        @test res.mnw == 3
         A = res.alloc
         for i in agents(A)
-            @test length(bundle(A, i)) == 2
+            @test length(bundle(A, i)) == 3
         end
 
     end

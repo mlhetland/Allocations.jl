@@ -1,5 +1,7 @@
 import Base: firstindex, getindex, in, iterate, lastindex, length, show, summary
 
+using DataStructures
+
 
 ##############################################################################
 
@@ -191,21 +193,21 @@ end
 """
     fill_even!(A)
 
-Fill out the allocation by distributing the unallocated items evenly, in the
-sense of minimizing the maximum bundle cardinality.
+Fill out the allocation by distributing the unallocated items evenly, by
+repeatedly giving the next unallocated item to the agent with the fewest items
+(ties broken arbitrarily).
 """
 function fill_even!(A)
     n, m = na(A), ni(A)
-    N = collect(agents(A))
-    b = [length(bundle(A, i)) for i in N]
-    t = ceil(Int, m/n)
-    sort!(N, by=i->b[i])
-    i = 1
+    pq = PriorityQueue{Int, Int}()
+    for i = 1:n
+        enqueue!(pq, i, length(bundle(A, i)))
+    end
     for g = 1:m
         owned(A, g) && continue
-        b[i] ≥ t && (i += 1)
-        b[i] += 1
+        i, b = peek(pq)
         give!(A, i, g)
+        pq[i] = b + 1
     end
     return A
 end
