@@ -285,7 +285,7 @@ function alloc_bkv18_2(V::Valuation)
         # we may transfer from j to i.
         G .= 0
         for i in N, g in M
-            (value(V, i, g) > 0 || O[g] == i) && continue
+            (value(V, i, g) == 0 || O[g] == i) && continue
             G[i, O[g]] = g
         end
 
