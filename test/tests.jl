@@ -482,7 +482,7 @@ end
 
             @test A isa Allocation
             @test check_partition(A)
-            @test nash_welfare(V, A)^(1/n) ≤ α*alloc_mnw(V).mnw^(1/n)
+            @test α*nash_welfare(V, A)^(1/n) ≥ alloc_mnw(V).mnw^(1/n)
             @test check_efx(V, A)
 
         end
