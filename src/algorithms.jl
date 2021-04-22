@@ -266,7 +266,6 @@ function alloc_bkv18_2(V::Valuation)
     U = zeros(Int, n)
     for g = M
         i = O[g]
-        i == 0 && continue
         U[i] += value(V, i, g)
     end
 
