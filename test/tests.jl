@@ -487,6 +487,16 @@ end
 
         @test alloc_bkv18_2(Valuation([0 0; 0 0])).mnw == 0
 
+        V = Valuation(ones(2, 10))
+        for _ = 1:10
+            @test alloc_bkv18_2(V).mnw == 25
+        end
+
+        for _ = 1:10
+            V = Valuation(rand(Bool, rand(2:5), rand(5:15)))
+            @test alloc_bkv18_2(V).mnw == alloc_mnw(V).mnw
+        end
+
         # Even distribution of unvalued items:
         V = Valuation([1 1 1 0 0 0 0 0 0
                        0 0 0 0 0 0 0 0 0
