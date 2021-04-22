@@ -205,9 +205,9 @@ function fill_even!(A)
     end
     for g = 1:m
         owned(A, g) && continue
-        i, b = peek(pq)
+        i, u = peek(pq)
         give!(A, i, g)
-        pq[i] = b + 1
+        pq[i] = u + 1
     end
     return A
 end

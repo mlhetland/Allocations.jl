@@ -466,6 +466,29 @@ end
 
     end
 
+    @testset "BKV18(1)" begin
+
+        α = 1.061 # Approximation ratio, for geomean version of NW
+
+        for _ = 1:10
+
+            n = rand(2:4)
+            m = 3n
+            # Identical valuations
+            V = Valuation(repeat(rand(1:5, 1, m), n))
+
+            res = alloc_bkv18_1(V)
+            A = res.alloc
+
+            @test A isa Allocation
+            @test check_partition(A)
+            @test nash_welfare(V, A)^(1/n) ≤ α*alloc_mnw(V).mnw^(1/n)
+            @test check_efx(V, A)
+
+        end
+
+    end
+
     @testset "BKV18(2)" begin
 
         V = Valuation([1 1 0 1 0
@@ -476,6 +499,7 @@ end
         A = res.alloc
 
         @test A isa Allocation
+        @test check_partition(A)
         @test res.mnw == alloc_mnw(V).mnw
 
         V = Valuation([1 0; 1 0; 0 1])
