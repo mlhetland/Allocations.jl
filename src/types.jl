@@ -1,5 +1,7 @@
 import Base: firstindex, getindex, in, iterate, lastindex, length, show, summary
 
+using DataStructures
+
 
 ##############################################################################
 
@@ -188,11 +190,34 @@ function deny!(A, i, g)
 end
 
 
+"""
+    fill_even!(A)
+
+Fill out the allocation by distributing the unallocated items evenly, by
+repeatedly giving the next unallocated item to the agent with the fewest items
+(ties broken arbitrarily).
+"""
+function fill_even!(A)
+    n, m = na(A), ni(A)
+    pq = PriorityQueue{Int, Int}()
+    for i = 1:n
+        enqueue!(pq, i, length(bundle(A, i)))
+    end
+    for g = 1:m
+        owned(A, g) && continue
+        i, b = peek(pq)
+        give!(A, i, g)
+        pq[i] = b + 1
+    end
+    return A
+end
+
+
 ## Valuations ################################################################
 
 
 """
-    struct Valuation <: Any
+    abstract struct Valuation <: Any
 
 An abstract type representing a valuation oracle. Which functions are used to
 query it depends on the kind of valuation functions it represents. Additive
@@ -208,8 +233,12 @@ abstract type Valuation end
 
 """
     value(V::Valuation, i, S)
+    value(V::Valuation, i, g::Int)
 
-The value agent `i` places on bundle `S`, according to the oracle `V`.
+The value agent `i` places on bundle `S`, according to the oracle `V`. The
+second form is a shortcut for `value(V, i, [g])`, which will generally be more
+efficient. Note that the value of `S` may *not* in general be the sum of the
+values of its items; that property is unique to `Additive` valuations.
 """
 function value end
 
