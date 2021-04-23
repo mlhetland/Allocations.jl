@@ -1,3 +1,5 @@
+using DataStructures
+
 """
     alloc_half_mms(V::Additive, C::Counts)
 
@@ -198,6 +200,41 @@ function alloc_rand(n::Int, m::Int, C::Conflicts)
 end
 
 
+"""
+    alloc_bkv18_1(V)
+
+The first algorithm (**Alg-Identical**) described by Barman, Krishnamurty and
+Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
+Welfare](https://doi.org/10.1145/3355902). The algorithm finds a
+1.061-approximate MNW allocation when agents have identical valuations, i.e.,
+for any agents `i`, `j` and item `g`, `value(V, i, g) == value(V, j, g)`. (This
+approximation ratio applies to the geometric mean of agent utilities, not the
+raw product.) The result will also be envy-free up to any item (EFX).
+
+The algorithm follows a straightforward greedy allocation procedure, where in
+each iteration, the most valuable item is allocated to the agent with the lowest
+utility.
+"""
+function alloc_bkv18_1(V)
+
+    n, m = na(V), ni(V)
+    v = [value(V, 1, g) for g = 1:m]
+
+    pq = PriorityQueue{Int, Int}(i => 0 for i = 1:n)
+
+    A = Allocation(n, m)
+
+    for g in sortperm(v, rev=true)
+        i, u = peek(pq)
+        give!(A, i, g)
+        pq[i] = u + v[g]
+    end
+
+    return (alloc = A,)
+
+end
+
+
 # The original descriptions of the following algorithm leaves a great latitude
 # in how one actually implements it. The gist of the procedure is a local
 # search, where an allocation is incrementally improved along paths in a graph,
@@ -209,7 +246,7 @@ end
 # kept simple, with a fresh traversal for each agent pair.
 
 """
-    alloc_bkv18_2(V::Valuation)
+    alloc_bkv18_2(V)
 
 The second algorithm (**Alg-Binary**) described by Barman, Krishnamurty and
 Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
@@ -234,7 +271,7 @@ receive items valued zero, if that evens out the bundle cardinalities). The
 return value is a named tuple with the fields `alloc` (the `Allocation`) and
 `mnw` (the Nash welfare, ignoring agents with zero utility).
 """
-function alloc_bkv18_2(V::Valuation)
+function alloc_bkv18_2(V)
 
     n, m = na(V), ni(V)
 

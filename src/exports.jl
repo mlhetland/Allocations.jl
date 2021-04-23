@@ -8,6 +8,7 @@ export
     Valuation,
     agents,
     agents,
+    alloc_bkv18_1,
     alloc_bkv18_2,
     alloc_ef1,
     alloc_efx,
