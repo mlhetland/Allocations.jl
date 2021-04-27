@@ -149,9 +149,7 @@ achieve_mm(cutoff=nothing) = function(ctx)
         @constraint(model, v_min <= sum(A[i, g] * value(V, i, g) for g in M))
     end
 
-    if cutoff ≢ nothing
-        @constraint(model, v_min <= cutoff)
-    end
+    isnothing(cutoff) || @constraint(model, v_min <= cutoff)
 
     @objective(model, Max, v_min)
 
