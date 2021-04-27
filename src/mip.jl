@@ -59,7 +59,7 @@ init_mip(V::Matrix, solver) = init_mip(Additive(V), solver)
 # Solves the MIP model and constructs the actual Allocation object in the
 # MIPContext.
 # ϵ: https://www.gurobi.com/documentation/9.1/refman/intfeastol.html
-function solve_mip(ctx, ϵ=1e-5, check=check_partition)
+function solve_mip(ctx; ϵ=1e-5, check=check_partition)
 
     optimize!(ctx.model)
 
