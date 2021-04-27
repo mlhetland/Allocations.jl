@@ -58,7 +58,8 @@ init_mip(V::Matrix, solver) = init_mip(Additive(V), solver)
 
 # Solves the MIP model and constructs the actual Allocation object in the
 # MIPContext.
-function solve_mip(ctx)
+# ϵ: https://www.gurobi.com/documentation/9.1/refman/intfeastol.html
+function solve_mip(ctx; ϵ=1e-5, check=check_partition)
 
     optimize!(ctx.model)
 
@@ -68,8 +69,12 @@ function solve_mip(ctx)
     ctx.alloc = Allocation(na(V), ni(V))
 
     for i in agents(V), g in items(V)
-        JuMP.value(ctx.alloc_var[i, g]) ≈ 1.0 && give!(ctx.alloc, i, g)
+        val = JuMP.value(ctx.alloc_var[i, g])
+        @assert val ≤ ϵ || val ≥ 1 - ϵ
+        val ≥ 1.0 - ϵ && give!(ctx.alloc, i, g)
     end
+
+    isnothing(check) || check(ctx.alloc)
 
     return ctx
 
@@ -144,9 +149,7 @@ achieve_mm(cutoff=nothing) = function(ctx)
         @constraint(model, v_min <= sum(A[i, g] * value(V, i, g) for g in M))
     end
 
-    if cutoff ≢ nothing
-        @constraint(model, v_min <= cutoff)
-    end
+    isnothing(cutoff) || @constraint(model, v_min <= cutoff)
 
     @objective(model, Max, v_min)
 
