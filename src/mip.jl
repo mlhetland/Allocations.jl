@@ -68,7 +68,7 @@ function solve_mip(ctx)
     ctx.alloc = Allocation(na(V), ni(V))
 
     for i in agents(V), g in items(V)
-        JuMP.value(ctx.alloc_var[i, g]) ≈ 1.0 && give!(ctx.alloc, i, g)
+        JuMP.value(ctx.alloc_var[i, g]) ≥ 1.0 - 1e-5 && give!(ctx.alloc, i, g)
     end
 
     return ctx
