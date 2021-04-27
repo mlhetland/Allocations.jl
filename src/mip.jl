@@ -71,7 +71,7 @@ function solve_mip(ctx; ϵ=1e-5, check=check_partition)
     for i in agents(V), g in items(V)
         val = JuMP.value(ctx.alloc_var[i, g])
         @assert val ≤ ϵ || val ≥ 1 - ϵ
-        val ≥ 1.0 - 1e-5 && give!(ctx.alloc, i, g)
+        val ≥ 1.0 - ϵ && give!(ctx.alloc, i, g)
     end
 
     isnothing(check) || check(ctx.alloc)
