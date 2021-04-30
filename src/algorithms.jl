@@ -370,9 +370,10 @@ function alloc_bkv18_2(V)
 
         # Pass items back along path from s to t
         while t ≠ s
-            @assert O[G[s, t]] == t
-            O[G[s, t]] = s
-            t = Π[s, t]
+            p = Π[s, t]
+            @assert O[G[p, t]] == t
+            O[G[p, t]] = p
+            t = p
         end
 
     end
