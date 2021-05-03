@@ -521,6 +521,12 @@ end
             @test alloc_bkv18_2(V).mnw == alloc_mnw(V).mnw
         end
 
+        # Regression test
+        V = Valuation([0 0 1 0 1 1; 0 1 0 1 1 1; 0 1 0 1 0 0])
+        for _ = 1:10
+            alloc_bkv18_2(V) # Should not throw an exception
+        end
+
         # Even distribution of unvalued items:
         V = Valuation([1 1 1 0 0 0 0 0 0
                        0 0 0 0 0 0 0 0 0
