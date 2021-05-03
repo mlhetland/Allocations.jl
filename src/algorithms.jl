@@ -461,7 +461,7 @@ function alloc_bkv18_2(V; randpri=true, complete=false)
         fill_even!(A)
     end
 
-    return (; alloc=A, mnw=nash_welfare(V, A))
+    return (alloc=A, mnw=nash_welfare(V, A))
 
 end
 
