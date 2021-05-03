@@ -13,6 +13,7 @@ export
     alloc_ef1,
     alloc_efx,
     alloc_half_mms,
+    alloc_hpps20_1,
     alloc_ggi,
     alloc_mm,
     alloc_mms,
