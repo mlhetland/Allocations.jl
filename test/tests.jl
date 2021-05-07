@@ -540,13 +540,59 @@ end
 
     end
 
+    @testset "GHSS18(4)" begin
+
+        # A modified version of the valuation function from the instance
+        # where the best possible allocation has α = 3/4. The MMS with this
+        # valuation function and m = 2n items, is 2.
+        function v(m, B)
+            if length(B) != 2
+                return length(B)
+            end
+
+            g, g′ = minimum(B), maximum(B)
+            if g == 1 && g′ == m || floor(g / 2) == floor(g′ / 2)
+                return 2
+            end
+
+            return 3/2
+        end
+
+        # A function that creates a new set, with all items being incremented by
+        # 1 (if m ∈ B, then 1 is in the new set). Setting the valuation of an
+        # agent to v(inc(B)) gives the agent an MMS value of 2.
+        inc(m, B) = Set(mod(g, 1:m) for g in B)
+
+        n = 5
+        m = 2n
+        Vf = vcat([B -> v(m, B) for _ in 1:(n - 1)], [B -> v(m, inc(m, B))])
+        V = Submodular(Vf, m)
+
+        # Test with knowing the MMS value
+        res = alloc_ghss18_4(V, repeat([2], n))
+
+        @test !res.fail
+
+        A = res.alloc
+        for i in agents(V)
+            @test value(V, i, bundle(A, i)) ≥ 2/3
+        end
+
+        # Test without knowing MMS value
+        res = alloc_ghss18_4b(V)
+
+        for i in agents(V)
+            @test value(V, i, bundle(A, i)) ≥ 2/3
+        end
+    end
+
     @testset "1/2-MMS with card. constr." begin
 
         V = V₀
 
         function test_cardinality_constraints_half_mms(V, C)
 
-            A = alloc_half_mms(V, C)
+            A = alloc_half_mms(V, C).alloc
 
             @test A isa Allocation
             # Test that all items are allocated properly

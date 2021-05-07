@@ -17,7 +17,7 @@ function reduce(V::Additive, C::Vector{OrderedCategory}, agent, B)
     Δg = 0
 
     for g in M
-        if g in B 
+        if g in B
             Δg += 1
             continue
         end
@@ -38,6 +38,32 @@ function reduce(V::Additive, C::Vector{OrderedCategory}, agent, B)
     end
 
     return Additive(Vs), Cs, (A) -> revert(translate, agent, B, A)
+end
+
+
+"""
+    reduce(V::Submodular, agent, B)
+
+Reduce the instance given by V to a new instance by giving the supplied agent
+the supplied bundle, `B`. Returns a submodular valuation, where each remaining
+agents valuation function is the same as calling their original valuation
+function after translating the items back to their identifier in the original
+instance. Additionally, returns a function that transforms an allocation in the
+reduced instance to one for the original instance, including giving bundle B to
+the supplied agent.
+"""
+function reduce(V::Submodular, agent, B)
+
+    N, M = agents(V), items(V)
+
+    # Translation table
+    Δg = [g for g in M if g ∉ B]
+
+    Vf′ = [B -> value(V, i, Set(Δg[g] for g in B)) for i in N if i != agent]
+    V′ = Submodular(Vf′, length(Δg))
+
+    return V′, (A) -> revert(Δg, agent, B, A)
+
 end
 
 
@@ -103,6 +129,32 @@ end
 
 
 """
+    reduce(V::Submodular, α::Float64)
+
+Reduce an instance by giving any agent that value an individual item at greater
+than or equal to α the item. This reduction is performed recursively until no
+more such items exists.
+"""
+function reduce(V::Submodular, α::Float64)
+    N, M = agents(V), items(V)
+
+    for i in N, g in M
+        if value(V, i, g) ≥ α
+            V, convert = reduce(V, i, Set(g))
+
+            # Recursive application on the new instance
+            V, prev_convert = reduce(V, α)
+
+            # The converters have to be applied in reverse
+            return V, (A) -> convert(prev_convert(A))
+        end
+    end
+
+    return V, (A) -> A
+end
+
+
+"""
     order(V::Additive, C::Counts)
 
 Create an ordered instance for the given weights and categories. The items are
@@ -137,12 +189,12 @@ Convert an allocation for the ordered instance to one for the original instance.
 """
 function revert(V::Additive, C::Counts, Co::Vector{OrderedCategory}, A)
     A′ = Allocation(na(A), ni(A))
- 
+
     for (unordered_category, ordered_category) in zip(C, Co)
         items = copy(unordered_category.members)
         for g in ordered_category
             i = owner(A, g)
-            
+
             # Select the good in the category with the highest value
             g′ = maximum((g) -> (value(V, i, g), g), items)[2]
 
