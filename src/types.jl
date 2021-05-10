@@ -1,5 +1,5 @@
 import Base: firstindex, getindex, in, iterate, lastindex, length, show,
-    summary, show_vector, print_without_params
+    summary, show_vector
 
 using DataStructures
 
@@ -13,6 +13,7 @@ using DataStructures
 The number of agents represented by (e.g., valuation or allocation) `X`.
 """
 function na end
+
 
 """
     agents(X)
