@@ -1,12 +1,12 @@
 """
-    reduce(V::Additive, C::Counts{OrderedCategory}, agent, removedbundle)
+    reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
 
 Reduce the instance given by the pair (V, C) to a new instance by giving the
-supplied agent the supplied bundle, `B`. Returns a reduction, where the
+supplied agent, `i`, the supplied bundle, `B`. Returns a reduction, where the
 transformation, in addition to converting the allocation to one for the original
-instance, allocates `B` to the supplied agent.
+instance, allocates `B` to `i`.
 """
-function reduce(V::Additive, C::Counts{OrderedCategory}, agent, B)
+function reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
     N, M = agents(V), items(V)
     n′, m′ = na(V) - 1, ni(V) - length(B)
 
@@ -19,7 +19,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, agent, B)
         push!(λg, g)
         g′ = length(λg)
 
-        Vs[1:n′,g′] = [value(V, i, g) for i in N if i != agent]
+        Vs[1:n′,g′] = [value(V, j, g) for j in N if i != j]
     end
 
     # Create new ordered categories
@@ -31,7 +31,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, agent, B)
         index += newlength
     end
 
-    λi = [i for i in agents(V) if i != agent]
+    λi = [j for j in agents(V) if i != j]
     V′, C′ = Additive(Vs), Counts(Cs)
 
     return Reduction(V′, C′, λi, λg, A -> revert(λg, agent, B, A))
@@ -39,20 +39,20 @@ end
 
 
 """
-    revert(translate::Vector{Int}, agent, removedbundle, A::Allocation)
+    revert(translate::Vector{Int}, i, B, A::Allocation)
 
 Convert an allocation for a reduced instance to one for the original instance,
-including giving the removed bundle, `B`, to the removed agent.
+including giving the removed bundle, `B`, to the removed agent, `i`.
 """
-function revert(λg::Vector{Int}, agent, B, A::Allocation)
+function revert(λg::Vector{Int}, i, B, A::Allocation)
     A′ = Allocation(na(A) + 1, ni(A) + length(B))
 
-    for i in 1:na(A)
-        i′ = i + (i >= agent)
-        give!(A′, i′, [λg[g] for g in bundle(A, i)])
+    for j in 1:na(A)
+        j′ = j + (j >= i)
+        give!(A′, j′, [λg[g] for g in bundle(A, j)])
     end
 
-    give!(A′, agent, B)
+    give!(A′, i, B)
 
     return A′
 end
@@ -126,7 +126,7 @@ function order(V::Additive, C::Counts{Category})
         m += length(c)
     end
 
-#    # For goods, a direct translation does not exist nor make sense.
+    # For goods, a direct translation does not exist nor make sense.
     λi, λg = Vector(agents(V)), Vector(items(V))
     V′, C′ = Additive(Vo), Counts(Co)
 
