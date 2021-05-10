@@ -453,35 +453,6 @@ threshold(c::Category) = c.threshold
 
 
 """
-    struct Counts <: Constraint
-
-The *cardinality constraints* introduced by Biswas and Barman in their 2018
-paper [Fair Division Under Cardinality
-Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
-constraint consisting of several `Category` objects, available through
-indexing or iteration. Any agent may hold at most a given number of items from
-any given category.
-"""
-struct Counts <: Constraint
-    categories::Vector{Category}
-end
-
-
-"""
-    Counts(args::Pair...)
-
-Create a `Counts` where each pairs `x => k` becomes a category with members
-`Set(x)` and threshold `k`.
-"""
-Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
-
-
-getindex(C::Counts, i) = C.categories[i]
-length(C::Counts) = length(C.categories)
-iterate(C::Counts, args...) = iterate(C.categories, args...)
-
-
-"""
     mutable struct OrderedCategory
 
 Used in place of `Category` when handling an ordered instance. The instance is
@@ -537,6 +508,35 @@ required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
 
 
 """
+    struct Counts <: Constraint
+
+The *cardinality constraints* introduced by Biswas and Barman in their 2018
+paper [Fair Division Under Cardinality
+Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
+constraint consisting of several `Category` objects, available through
+indexing or iteration. Any agent may hold at most a given number of items from
+any given category.
+"""
+struct Counts{T <: Union{Category, OrderedCategory}} <: Constraint
+    categories::Vector{T}
+end
+
+
+"""
+    Counts(args::Pair...)
+
+Create a `Counts` where each pairs `x => k` becomes a category with members
+`Set(x)` and threshold `k`.
+"""
+Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
+
+
+getindex(C::Counts, i) = C.categories[i]
+length(C::Counts) = length(C.categories)
+iterate(C::Counts, args...) = iterate(C.categories, args...)
+
+
+"""
     struct Conflicts{T <: AbstractGraph} <: Constraint
 
 A kind of constraint -- or set of constraints -- that indicates that certain
@@ -557,3 +557,112 @@ end
 Return the conflict graph wrapped by a `Conflicts` object.
 """
 graph(C::Conflicts) = C.graph
+
+
+## Reductions ################################################################
+
+
+"""
+    mutable struct Reduction
+
+A reduction from one instance of a fair allocation problem to another. Contains
+information about the valuations and, if needed, constraints of the reduced
+instance. In addition, the reduction contains two mappings, `λi` and `λg`, from,
+respectively, agents and items in the reduced instance to their identifiers in
+the original instance. In addition, the reduction contains a way to convert an allocation
+"""
+mutable struct Reduction{S <: Valuation, T <: Union{Constraint, Nothing}}
+    V::S
+    C::T
+    λi::Vector{Int64}
+    λg::Vector{Int64}
+    transform::Function
+end
+
+
+"""
+    Reduction(V, λi, λg, revert)
+
+A simplified constructor for when there are no constraints.
+"""
+Reduction(V, λi, λg, revert) = Reduction(V, nothing, λi, λg, revert)
+
+
+"""
+    Reduction(V, C)
+
+A simplified constructor for when either no changes has been performed or
+changes only concern the valuations and/or constraints.
+"""
+Reduction(V, C) = Reduction(V, C, Vector(agents(V)), Vector(items(V)), (A) -> A)
+
+
+"""
+    Reduction(V)
+
+A simplified constructor for when either no changes has been performed or
+changes only concern the valuations.
+"""
+Reduction(V) = Reduction(V, nothing)
+
+
+"""
+    valuation(R::Reduction)
+
+Returns the valuations in the reduced instance.
+"""
+valuations(R::Reduction) = R.V
+
+
+"""
+    constraints(R::Reduction)
+
+Returns the constraints in the reduced instance
+"""
+constraints(R::Reduction) = R.C
+
+
+"""
+    transform(R::Reduction, A::Allocation)
+
+Converts the given allocation for the reduced instance to one for original
+instance. The way the convertion occurs depends on the given reduction.
+"""
+transform(R::Reduction, A::Allocation) = R.transform(A)
+
+
+"""
+    agent(R::Reduction, i)
+
+Converts the agent identifier `i` from the reduced instance to the agent
+identifier of the same agent in the original instance.
+"""
+agent(R::Reduction, i) = R.λi[i]
+
+
+"""
+    item(R::Reduction, g)
+
+Converts the item identifier `g` from the reduced instance to the item
+identifier of the same item in the original instance.
+"""
+item(R::Reduction, g) = R.λg[g]
+
+
+"""
+    chain(R₁::Reduction, R₂::Reduction)
+
+Assumes that R₂ is a reduction of the reduced instance of R₁. Combines the two
+reductions, so that the original instance is the original instance of R₁ and the
+reduced instance is the reduced instance of R₂.
+"""
+function chain(R₁::Reduction, R₂::Reduction)
+    return Reduction(
+            R₂.V,
+            R₂.C,
+            [agent(R₁, agent(R₂, i)) for i in agents(R₂.V)],
+            [item(R₁, item(R₂, g)) for g in items(R₂.V)],
+            (A) -> transform(R₁, transform(R₂, A))
+        )
+end
+
