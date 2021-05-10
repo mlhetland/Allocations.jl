@@ -525,8 +525,8 @@ end
 """
     Counts(args::Pair...)
 
-Create a `Counts` where each pairs `x => k` becomes a category with members
-`Set(x)` and threshold `k`.
+Create a `Counts` object where each pair `x => k` becomes a category with
+members `Set(x)` and threshold `k`.
 """
 Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
 
@@ -569,11 +569,12 @@ A reduction from one instance of a fair allocation problem to another. Contains
 information about the valuations and, if needed, constraints of the reduced
 instance. In addition, the reduction contains two mappings, `λi` and `λg`, from,
 respectively, agents and items in the reduced instance to their identifiers in
-the original instance. In addition, the reduction contains a way to convert an allocation
+the original instance. The reduction also contains a way to convert an
+allocation
 """
-mutable struct Reduction{S <: Valuation, T <: Union{Constraint, Nothing}}
+mutable struct Reduction{S <: Valuation, T <: Constraint}
     V::S
-    C::T
+    C::Union{T, Nothing}
     λi::Vector{Int64}
     λg::Vector{Int64}
     transform::Function
@@ -591,16 +592,16 @@ Reduction(V, λi, λg, revert) = Reduction(V, nothing, λi, λg, revert)
 """
     Reduction(V, C)
 
-A simplified constructor for when either no changes has been performed or
+A simplified constructor for when either no changes have been performed or
 changes only concern the valuations and/or constraints.
 """
-Reduction(V, C) = Reduction(V, C, Vector(agents(V)), Vector(items(V)), (A) -> A)
+Reduction(V, C) = Reduction(V, C, collect(agents(V)), collect(items(V)), identity)
 
 
 """
     Reduction(V)
 
-A simplified constructor for when either no changes has been performed or
+A simplified constructor for when either no changes have been performed or
 changes only concern the valuations.
 """
 Reduction(V) = Reduction(V, nothing)
@@ -664,4 +665,3 @@ function chain(R₁::Reduction, R₂::Reduction)
             (A) -> transform(R₁, transform(R₂, A))
         )
 end
-

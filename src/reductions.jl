@@ -34,7 +34,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, agent, B)
     λi = [i for i in agents(V) if i != agent]
     V′, C′ = Additive(Vs), Counts(Cs)
 
-    return Reduction(V′, C′, λi, λg, (A) -> revert(λg, agent, B, A))
+    return Reduction(V′, C′, λi, λg, A -> revert(λg, agent, B, A))
 end
 
 
@@ -126,11 +126,11 @@ function order(V::Additive, C::Counts{Category})
         m += length(c)
     end
 
-#    # For goods, a direct translation does not exist nor makes sense.
+#    # For goods, a direct translation does not exist nor make sense.
     λi, λg = Vector(agents(V)), Vector(items(V))
     V′, C′ = Additive(Vo), Counts(Co)
 
-    return Reduction(V′, C′, λi, λg, (A) -> revert(V, C, C′, A))
+    return Reduction(V′, C′, λi, λg, A -> revert(V, C, C′, A))
 end
 
 
