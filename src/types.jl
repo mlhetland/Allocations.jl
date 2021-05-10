@@ -1,4 +1,5 @@
-import Base: firstindex, getindex, in, iterate, lastindex, length, show, summary
+import Base: firstindex, getindex, in, iterate, lastindex, length, show,
+    summary, show_vector, print_without_params
 
 using DataStructures
 
@@ -39,6 +40,7 @@ as an iterable of `Int`s.
 items(X) = 1:ni(X)
 
 
+# Used by Allocation and Additive
 function show_agents_and_items(io::IO, X)
     n, m = na(X), ni(X)
     print(io,
@@ -46,10 +48,6 @@ function show_agents_and_items(io::IO, X)
         " and ",
         m, (m == 1 ? " item" : " items"))
 end
-
-
-show_bundle(io::IO, S) =
-    print(io, "{", join(sort(collect(S)), ", "), "}")
 
 
 ## Allocations ###############################################################
@@ -89,10 +87,52 @@ na(A::Allocation) = length(bundle(A))
 ni(A::Allocation) = length(owners(A))
 
 
+## Allocation printing
+
+
+# Rather than reinventing printing code, we'll let built-in functions for
+# AbstractDict and AbstractVector much of the heavy lifting, using a couple of
+# one-off wrappers (AllocShowWrap and BundleShowWrap).
+
+
+function show_bundle(io::IO, S)
+    seq = sort(collect(S))
+    # Supplying :typeinfo to "pretend" we've already printed the type info
+    ctx = IOContext(io, :typeinfo => typeof(seq))
+    show_vector(ctx, seq, "{", "}")
+end
+
+
+# Single-use -- assumes alloc will not be modified after construction, because
+# this won't be reflected in pairs. This wrap is used to leverage the
+# MIME"text/plain" printing of an AbstractDict; it is not used with single-line
+# printing of Allocations (which is implemented more directly).
+struct AllocShowWrap <: AbstractDict{Int,Set{Int}}
+    alloc::Allocation
+    pairs
+end
+AllocShowWrap(A) =
+    AllocShowWrap(A, enumerate(BundleShowWrap.(A.bundle)))
+
+
+summary(io::IO, w::AllocShowWrap) = summary(io, w.alloc)
+show(io::IO, w::AllocShowWrap) = show(io, w.alloc)
+length(w::AllocShowWrap) = na(w.alloc)
+iterate(w::AllocShowWrap, args...) = iterate(w.pairs, args...)
+
+
+struct BundleShowWrap
+    bundle
+end
+
+
+show(io::IO, w::BundleShowWrap) = show_bundle(io, w.bundle)
+
+
 function summary(io::IO, A::Allocation)
     print(io, "Allocation with ")
     show_agents_and_items(io, A)
-    u = length([g for g in items(A) if isempty(owners(A, g))])
+    u = length([g for g in items(A) if !owned(A, g)])
     if u != 0
         print(io, ", ", u, " unallocated")
     end
@@ -100,20 +140,17 @@ end
 
 
 function show(io::IO, A::Allocation)
-    print(io, "[",
-        join([sprint(show_bundle, bundle(A, i)) for i in agents(A)], ", "),
-    "]")
+    seq = BundleShowWrap.(A.bundle)
+    # Supplying :typeinfo to "pretend" we've already printed the type info
+    ctx = IOContext(io, :typeinfo => typeof(seq))
+    show_vector(ctx, seq)
 end
 
 
-function show(io::IO, ::MIME"text/plain", A::Allocation)
-    summary(io, A)
-    print(io, ":")
-    for i in agents(A)
-        print(io, "\n  ", i, " => ")
-        show_bundle(io, bundle(A, i))
-    end
-end
+show(io::IO, m::MIME"text/plain", A::Allocation) = show(io, m, AllocShowWrap(A))
+
+
+## Allocation accessors and manipulators
 
 
 """
