@@ -658,10 +658,9 @@ reduced instance is the reduced instance of R₂.
 """
 function chain(R₁::Reduction, R₂::Reduction)
     return Reduction(
-            R₂.V,
-            R₂.C,
-            [agent(R₁, agent(R₂, i)) for i in agents(R₂.V)],
-            [item(R₁, item(R₂, g)) for g in items(R₂.V)],
+            R₂.V, R₂.C,
+            [agent(R₁, i) for i in R₂.λi],
+            [item(R₁, g) for g in R₂.λg],
             (A) -> transform(R₁, transform(R₂, A))
         )
 end
