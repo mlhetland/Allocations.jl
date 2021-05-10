@@ -429,8 +429,8 @@ abstract type Constraint end
 """
     mutable struct Category
 
-One of the cateogy in a `Counts` constraint, from which each agent can hold at
-most a given number of items. The category supports iteration (over its
+One of the categories in a `Counts` constraint, from which each agent can hold
+at most a given number of items. The category supports iteration (over its
 members), and the threashold is available through the `threshold` accessor.
 """
 mutable struct Category
@@ -508,7 +508,7 @@ required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
 
 
 """
-    struct Counts <: Constraint
+    struct Counts{T} <: Constraint
 
 The *cardinality constraints* introduced by Biswas and Barman in their 2018
 paper [Fair Division Under Cardinality
@@ -517,7 +517,7 @@ constraint consisting of several `Category` objects, available through
 indexing or iteration. Any agent may hold at most a given number of items from
 any given category.
 """
-struct Counts{T <: Union{Category, OrderedCategory}} <: Constraint
+struct Counts{T} <: Constraint
     categories::Vector{T}
 end
 
@@ -563,14 +563,14 @@ graph(C::Conflicts) = C.graph
 
 
 """
-    mutable struct Reduction
+    mutable struct Reduction{S <: Valuation, T <: Constraint}
 
 A reduction from one instance of a fair allocation problem to another. Contains
-information about the valuations and, if needed, constraints of the reduced
-instance. In addition, the reduction contains two mappings, `λi` and `λg`, from,
-respectively, agents and items in the reduced instance to their identifiers in
-the original instance. The reduction also contains a way to convert an
-allocation
+information about the `Valuation` object of type `S` and, if needed, the
+`Constraint` object of type `T`, of the reduced instance. In addition, the
+reduction contains two mappings, `λi` and `λg`, from, respectively, agents and
+items in the reduced instance to their identifiers in the original instance. The
+reduction also contains a way to convert an allocation.
 """
 mutable struct Reduction{S <: Valuation, T <: Constraint}
     V::S

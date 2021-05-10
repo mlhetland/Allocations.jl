@@ -34,7 +34,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
     λi = [j for j in agents(V) if i != j]
     V′, C′ = Additive(Vs), Counts(Cs)
 
-    return Reduction(V′, C′, λi, λg, A -> revert(λg, agent, B, A))
+    return Reduction(V′, C′, λi, λg, A -> revert(λg, i, B, A))
 end
 
 
@@ -111,7 +111,7 @@ Returns a reduction, with a transformation that converts an allocation to one in
 the original instance where each agent gets at least the same value as in the
 ordered instance.
 """
-function order(V::Additive, C::Counts{Category})
+function order(V::Additive, C::Counts)
     N = agents(V)
     Vo = zeros(na(V), ni(V))
     Co = OrderedCategory[]
@@ -127,7 +127,7 @@ function order(V::Additive, C::Counts{Category})
     end
 
     # For goods, a direct translation does not exist nor make sense.
-    λi, λg = Vector(agents(V)), Vector(items(V))
+    λi, λg = collect(agents(V)), collect(items(V))
     V′, C′ = Additive(Vo), Counts(Co)
 
     return Reduction(V′, C′, λi, λg, A -> revert(V, C, C′, A))
@@ -135,15 +135,16 @@ end
 
 
 """
-    revert(V::Additive, C::Counts, Co::Vector{OrderedCategory}, A)
+    revert(V::Additive, C::Counts, C′::Counts, A)
 
-Convert an allocation for the ordered instance to one for the original instance.
+Convert an allocation for the ordered instance (`C′`) to one for the original
+instance `(V, C)`.
 """
-function revert(V::Additive, C::Counts{Category}, C′::Counts{OrderedCategory}, A)
+function revert(V::Additive, C::Counts, C′::Counts, A)
     A′ = Allocation(na(A), ni(A))
 
     for (unordered_category, ordered_category) in zip(C, C′)
-        items = copy(unordered_category.members)
+        items = [g for g in unordered_category]
         for g in ordered_category
             i = owner(A, g)
 
