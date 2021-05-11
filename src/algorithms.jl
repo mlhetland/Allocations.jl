@@ -19,13 +19,15 @@ agents before the procedure runs out of items to add to it or convert from low-
 to high-valued.
 """
 function alloc_half_mms(V::Additive, C::Counts)
-    V, C, convert = order(V, C)
+    R = order(V, C)
 
     # Normalize and allocate items worth 0.5 or more.
-    V, C, convert2 = reduce(V, C, 0.5)
+    R′ = reduce(valuations(R), constraints(R), 0.5)
 
+    R = chain(R, R′)
+
+    V, C = valuations(R), constraints(R)
     N, n = agents(V), na(V)
-    converts = [convert, convert2]
 
     while n > 1
         # Fill the bundle with the floor(k_h/n) least valuable items
@@ -59,8 +61,9 @@ function alloc_half_mms(V::Additive, C::Counts)
             end
         end
 
-        V, C, convert = reduce(V, C, findfirst(i -> value(V, i, B) >= 0.5, N), B)
-        push!(converts, convert)
+        R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ 0.5, N), B)
+        R = chain(R, R′)
+        V, C = valuations(R), constraints(R)
         N, n = agents(V), na(V)
     end
 
@@ -72,12 +75,8 @@ function alloc_half_mms(V::Additive, C::Counts)
         give!(A, 1, items(V))
     end
 
-    # Apply all the collected converters in order
-    for convert in Iterators.reverse(converts)
-        A = convert(A)
-    end
-
-    return A
+    # Create an allocation in the original instance
+    return transform(R, A)
 end
 
 

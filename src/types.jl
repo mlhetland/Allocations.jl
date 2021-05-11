@@ -467,8 +467,8 @@ abstract type Constraint end
 """
     mutable struct Category
 
-One of the cateogy in a `Counts` constraint, from which each agent can hold at
-most a given number of items. The category supports iteration (over its
+One of the categories in a `Counts` constraint, from which each agent can hold
+at most a given number of items. The category supports iteration (over its
 members), and the threashold is available through the `threshold` accessor.
 """
 mutable struct Category
@@ -488,35 +488,6 @@ The maximum number of items any agent can receive from the given category, as
 part of a `Counts` constraint.
 """
 threshold(c::Category) = c.threshold
-
-
-"""
-    struct Counts <: Constraint
-
-The *cardinality constraints* introduced by Biswas and Barman in their 2018
-paper [Fair Division Under Cardinality
-Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
-constraint consisting of several `Category` objects, available through
-indexing or iteration. Any agent may hold at most a given number of items from
-any given category.
-"""
-struct Counts <: Constraint
-    categories::Vector{Category}
-end
-
-
-"""
-    Counts(args::Pair...)
-
-Create a `Counts` where each pairs `x => k` becomes a category with members
-`Set(x)` and threshold `k`.
-"""
-Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
-
-
-getindex(C::Counts, i) = C.categories[i]
-length(C::Counts) = length(C.categories)
-iterate(C::Counts, args...) = iterate(C.categories, args...)
 
 
 """
@@ -575,6 +546,35 @@ required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
 
 
 """
+    struct Counts{T} <: Constraint
+
+The *cardinality constraints* introduced by Biswas and Barman in their 2018
+paper [Fair Division Under Cardinality
+Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
+constraint consisting of several `Category` objects, available through
+indexing or iteration. Any agent may hold at most a given number of items from
+any given category.
+"""
+struct Counts{T} <: Constraint
+    categories::Vector{T}
+end
+
+
+"""
+    Counts(args::Pair...)
+
+Create a `Counts` object where each pair `x => k` becomes a category with
+members `Set(x)` and threshold `k`.
+"""
+Counts(args::Pair...) = Counts([Category(Set(p[1]), p[2]) for p in args])
+
+
+getindex(C::Counts, i) = C.categories[i]
+length(C::Counts) = length(C.categories)
+iterate(C::Counts, args...) = iterate(C.categories, args...)
+
+
+"""
     struct Conflicts{T <: AbstractGraph} <: Constraint
 
 A kind of constraint -- or set of constraints -- that indicates that certain
@@ -595,3 +595,123 @@ end
 Return the conflict graph wrapped by a `Conflicts` object.
 """
 graph(C::Conflicts) = C.graph
+
+
+## Reductions ################################################################
+
+
+"""
+    mutable struct Reduction{S, T, U, V}
+
+A reduction from one instance of a fair allocation problem to another. Contains
+information about the valuations in the reduced instance, through an object of
+type `S`. There must exist functions `agents(s::S)` and `items(s::S)` that
+return an iterator of, respectively, the agents and items in the reduced
+instance. The reduction can also contain information about the constraints in
+the reduced instance, through an object of type `T`.
+
+In addition, the reduction contains two mappings, `λi` (of type `U`) and `λg`
+(of type `V`). Both types should be indexable (for `i ∈ agents(s)` and `g ∈
+items(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and item
+identifier in the original instance of, respectively, agent `i` and item `g` in
+the reduced instance.
+
+The reduction also contains a function that can convert an allocation in the
+reduced instance to one in the original instance.
+
+The default constructor is `Reduction(V, C, λi, λg, transform::Function)`.
+"""
+mutable struct Reduction{S, T, U, V}
+    V::S
+    C::T
+    λi::U
+    λg::V
+    transform::Function
+end
+
+
+"""
+    Reduction(V, λi, λg, transform)
+
+A simplified constructor for when there are no constraints.
+"""
+Reduction(V, λi, λg, transform) = Reduction(V, nothing, λi, λg, transform)
+
+
+"""
+    Reduction(V, C)
+
+A simplified constructor for when either no changes have been performed or
+changes only concern the valuations and/or constraints.
+"""
+Reduction(V, C) = Reduction(V, C, agents(V), items(V), identity)
+
+
+"""
+    Reduction(V)
+
+A simplified constructor for when either no changes have been performed or
+changes only concern the valuations.
+"""
+Reduction(V) = Reduction(V, nothing)
+
+
+"""
+    valuation(R::Reduction)
+
+Returns the valuations in the reduced instance.
+"""
+valuations(R::Reduction) = R.V
+
+
+"""
+    constraints(R::Reduction)
+
+Returns the constraints in the reduced instance
+"""
+constraints(R::Reduction) = R.C
+
+
+"""
+    transform(R::Reduction, A::Allocation)
+
+Converts the given allocation for the reduced instance to one for original
+instance. The way the convertion occurs depends on the given reduction.
+"""
+transform(R::Reduction, A::Allocation) = R.transform(A)
+
+
+"""
+    agent(R::Reduction, i)
+
+Converts the agent identifier `i` from the reduced instance to the agent
+identifier of the same agent in the original instance.
+"""
+agent(R::Reduction, i) = R.λi[i]
+
+
+"""
+    item(R::Reduction, g)
+
+Converts the item identifier `g` from the reduced instance to the item
+identifier of the same item in the original instance.
+"""
+item(R::Reduction, g) = R.λg[g]
+
+
+"""
+    chain(R₁::Reduction, R₂::Reduction)
+
+Assumes that R₂ is a reduction of the reduced instance of R₁. Combines the two
+reductions, so that the original instance is the original instance of R₁ and the
+reduced instance is the reduced instance of R₂ (essentially diagram-order
+composition of the reductions).
+"""
+function chain(R₁::Reduction, R₂::Reduction)
+    return Reduction(
+            R₂.V, R₂.C,
+            [agent(R₁, agent(R₂, i)) for i in agents(R₂.V)],
+            [item(R₁, item(R₂, g)) for g in items(R₂.V)],
+            (A) -> transform(R₁, transform(R₂, A))
+        )
+end
