@@ -24,13 +24,15 @@ an approximation ratio of `α`, but may fail. In the latter case, the results
 will indicate a failure by setting `res.fail` to `true`.
 """
 function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
-    V, C, convert = order(V, C)
+    R = order(V, C)
 
-    # Normalize and allocate items worth 0.5 or more.
-    V, C, convert2 = reduce(V, C, α)
+    # Normalize and allocate items worth α or more.
+    R′ = reduce(valuations(R), constraints(R), α)
 
+    R = chain(R, R′)
+
+    V, C = valuations(R), constraints(R)
     N, n = agents(V), na(V)
-    converts = [convert, convert2]
 
     while n > 1
         # Fill the bundle with the floor(k_h/n) least valuable items
@@ -69,8 +71,9 @@ function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
             end
         end
 
-        V, C, convert = reduce(V, C, findfirst(i -> value(V, i, B) >= α, N), B)
-        push!(converts, convert)
+        R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ α, N), B)
+        R = chain(R, R′)
+        V, C = valuations(R), constraints(R)
         N, n = agents(V), na(V)
     end
 
@@ -88,12 +91,9 @@ function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
         give!(A, 1, items(V))
     end
 
-    # Apply all the collected converters in order
-    for convert in Iterators.reverse(converts)
-        A = convert(A)
-    end
+    # Create an allocation in the original instance
+    return (alloc=transform(R, A), fail=false)
 
-    return (alloc=A, fail=false)
 end
 
 
@@ -262,7 +262,8 @@ end
 # kept simple, with a fresh traversal for each agent pair.
 
 """
-    alloc_bkv18_2(V)
+    alloc_bkv18_2(V; randpri=true, complete=false)
+    alloc_hpps20_1(V; randpri=true, complete=false) # alias
 
 The second algorithm (**Alg-Binary**) described by Barman, Krishnamurty and
 Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
@@ -281,13 +282,31 @@ The strategy followed here is the same as that of Caragiannis et al.
 achieving positive utility is found using bipartite matching (with no fairness
 considerations). The remaining items are randomly allocated to agents among
 these that value them, if any. Remaining agents and items are ignored by the
-procedure; in the end, the allocation is completed with `fill_even!` (which
-means that some agents that must necessarily get a utility of zero can still
-receive items valued zero, if that evens out the bundle cardinalities). The
-return value is a named tuple with the fields `alloc` (the `Allocation`) and
-`mnw` (the Nash welfare, ignoring agents with zero utility).
+procedure.
+
+Following the algorithm of Barman et al., the tie-breaking procedure (Algorithm
+1) of Halpern et al. (http://arxiv.org/abs/2007.06073) is used, where the MNW
+allocation is transformed into the lexically greatest MNW, according to some
+ordering of the agents, providing group-strategyproofness (GSP) in addition to
+the EF1 and PO guarantees that follow from MNW. By default, the agent
+ordering/priority is random; if this randomization is turned off, the default
+ordering is used, with agent `1` receiving the highest priority, etc.
+
+!!! note
+
+    Despite the use of randomization here, by default, this is the
+    *deterministic* procedure of Halpern et al. They also describe a randomized
+    procedure, which functions in an entirely different manner.
+
+Finally, if the `complete` argument is set to `true`, the allocation is
+completed with `fill_even!` (which means that some agents that must necessarily
+get a utility of zero can still receive items valued zero, if that evens out the
+bundle cardinalities). Note that this undermines the GSP guarantee, which
+requires that these items be discarded. The return value is a named tuple with
+the fields `alloc` (the `Allocation`) and `mnw` (the Nash welfare, ignoring
+agents with zero utility).
 """
-function alloc_bkv18_2(V)
+function alloc_bkv18_2(V; randpri=true, complete=false)
 
     n, m = na(V), ni(V)
 
@@ -326,13 +345,8 @@ function alloc_bkv18_2(V)
     G = zeros(Int, n, n)
     Π = zeros(Int, n, n)
 
-    # We should never need more than this (as shown by Barman, Krishnamurty and
-    # Vaish). We'll add one iteration, which should never be reached, as a
-    # failsafe (with an assertion, below the loop):
-    maxiter = ceil(Int, 2m*(n+1)*log(n*m))
-
-    it = 0
-    for outer it = 1:maxiter + 1
+    # Update the graph G based on current ownership.
+    function update()
 
         # A form of adjacency matrix, where any G[i, j] > 0 is an arbitrary item
         # we may transfer from j to i.
@@ -341,6 +355,18 @@ function alloc_bkv18_2(V)
             (value(V, i, g) == 0 || O[g] == i) && continue
             G[i, O[g]] = g
         end
+
+    end
+
+    # We should never need more than this (as shown by Barman, Krishnamurty and
+    # Vaish). We'll add one iteration, which should never be reached, as a
+    # failsafe (with an assertion, below the loop):
+    maxiter = ceil(Int, 2m*(n+1)*log(n*m))
+
+    it = 0
+    for outer it = 1:maxiter + 1
+
+        update()
 
         # Predecessor matrix, where any Π[i, j] > 0 is the predecessor of j
         # along the path (sequence of possible transfers) from i.
@@ -381,8 +407,7 @@ function alloc_bkv18_2(V)
         best > 1 || break
 
         # There was an improvement, and the transfer of one unit of utility.
-        U[s] += 1
-        U[t] -= 1
+        U[t] -= 1; U[s] += 1
 
         # Pass items back along path from s to t
         while t ≠ s
@@ -396,16 +421,70 @@ function alloc_bkv18_2(V)
 
     @assert it ≤ maxiter # Make sure we found optimum
 
+    # We now have an MNW allocation, but want to applie the tiebreaker from
+    # HPPS20(1), ending up with the maximum MNW allocation in lexicographic
+    # order, given some priority ordering of the agents.
+
+    # Normally, the priorities are randomized (and function primarily to prevent
+    # group strategyproofness), but that may be turned off, in which case agents
+    # are prioritized by their index.
+    if randpri
+        shuffle!(N) # Random priorities
+    else
+        sort!(N)    # If i < j, i is prioritized
+    end
+
+    # Find a path (in the same graph as before) from i (with priority p) to some
+    # node j with lower priority and utility U[i] + 1. If one is found, pass
+    # items back to increment U[i] and decrement U[j]. (For simplicity, we
+    # increment/decrement along the path as well, though that cancels out.)
+    #
+    # We could have use Warshall here as well, but we'll potentially be
+    # modifying the graph between every start node, so a straight DFS is
+    # probably less wasteful.
+    function search(p, i, u, seen=falses(n))
+        seen[i] = true
+        for (q, j) in enumerate(N)
+            (G[i, j] > 0 && !seen[j]) || continue
+            target = (q > p && U[j] == u + 1)
+            if target || search(q, j, u, seen)
+                @assert O[G[i, j]] == j
+                O[G[i, j]] = i
+                U[j] -= 1; U[i] += 1
+                return true
+            end
+        end
+        return false
+    end
+
+    # In order of priority, p:
+    for (p, i) in enumerate(N)
+        update()
+        search(p, i, U[i])
+    end
+
+    # We now have the appropriate MNW allocation, represented by the ownership
+    # vector O, and create the resulting Allocation.
+
     A = Allocation(n, m)
     for g in M
         give!(A, O[g], g)
     end
 
-    fill_even!(A) # Distribute the unvalued items
+    if complete
+        # Distribute the unvalued items as well, somewhat evenly. Note that this
+        # ruins the group strategyproofness guarantees of HPPS20.
+        fill_even!(A)
+    end
 
-    return (; alloc=A, mnw=nash_welfare(V, A))
+    return (alloc=A, mnw=nash_welfare(V, A))
 
 end
+
+
+# Rather than BKV18(2) with HPPS20(1) for tie-breaking, one can view the
+# function as HPPS20(1) with BKV18(2) for finding the initial allocation.
+const alloc_hpps20_1 = alloc_bkv18_2
 
 
 """

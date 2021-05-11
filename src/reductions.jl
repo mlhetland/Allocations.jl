@@ -1,43 +1,40 @@
 """
-    reduce(V::Additive, C::Vector{OrderedCategory}, agent, removedbundle)
+    reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
 
 Reduce the instance given by the pair (V, C) to a new instance by giving the
-supplied agent the supplied bundle, `B`. Returns an additive valuation, a set
-of ordered categories for the new reduced instance and a function that turns an
-allocation in the reduced instance into one for the original instance,
-including giving the supplied agent the supplied bundle.
+supplied agent, `i`, the supplied bundle, `B`. Returns a reduction, where the
+transformation, in addition to converting the allocation to one for the original
+instance, allocates `B` to `i`.
 """
-function reduce(V::Additive, C::Vector{OrderedCategory}, agent, B)
+function reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
     N, M = agents(V), items(V)
     n′, m′ = na(V) - 1, ni(V) - length(B)
 
     Vs = zeros(n′, m′)
-    translate = zeros(Int, m′)
-
-    Δg = 0
+    λg = Int[]
 
     for g in M
-        if g in B
-            Δg += 1
-            continue
-        end
+        g ∈ B && continue
 
-        g′ = g - Δg
-        translate[g′] = g
+        push!(λg, g)
+        g′ = length(λg)
 
-        Vs[1:n′,g′] = [value(V, i, g) for i in N if i != agent]
+        Vs[1:n′,g′] = [value(V, j, g) for j in N if i != j]
     end
 
     # Create new ordered categories
     Cs = OrderedCategory[]
     index = 1
     for c in C
-        newlength = length(c ∩ translate)
+        newlength = length(c ∩ λg)
         push!(Cs, OrderedCategory(index, newlength, c.threshold))
         index += newlength
     end
 
-    return Additive(Vs), Cs, (A) -> revert(translate, agent, B, A)
+    λi = [j for j in agents(V) if i != j]
+    V′, C′ = Additive(Vs), Counts(Cs)
+
+    return Reduction(V′, C′, λi, λg, A -> revert(λg, i, B, A))
 end
 
 
@@ -68,19 +65,20 @@ end
 
 
 """
-    revert(translate::Vector{Int}, agent, removedbundle, A::Allocation)
+    revert(translate::Vector{Int}, i, B, A::Allocation)
 
 Convert an allocation for a reduced instance to one for the original instance,
-including giving the removed bundle, `B`, to the removed agent.
+including giving the removed bundle, `B`, to the removed agent, `i`.
 """
-function revert(translate::Vector{Int}, agent, B, A::Allocation)
+function revert(λg::Vector{Int}, i, B, A::Allocation)
     A′ = Allocation(na(A) + 1, ni(A) + length(B))
-    for i in 1:na(A)
-        i′ = i + (i >= agent)
-        give!(A′, i′, [translate[g] for g in bundle(A, i)])
+
+    for j in 1:na(A)
+        j′ = j + (j >= i)
+        give!(A′, j′, [λg[g] for g in bundle(A, j)])
     end
 
-    give!(A′, agent, B)
+    give!(A′, i, B)
 
     return A′
 end
@@ -97,7 +95,7 @@ MMS guarantee of any remaining agents and all agents that are allocated a
 bundle in the reduction is guaranteed to value their bundle at least α of their
 MMS guarantee.
 """
-function reduce(V::Additive, C::Vector{OrderedCategory}, α::Float64)
+function reduce(V::Additive, C::Counts{OrderedCategory}, α::Float64)
     N, n, M = agents(V), na(V), items(V)
 
     if n == 1 return reduce(V, C, 1, M) end
@@ -113,18 +111,20 @@ function reduce(V::Additive, C::Vector{OrderedCategory}, α::Float64)
                 Set{Int}(g),
                 [c[end - required(c, n) + (g in c) + 1:end] for c in C]...)
 
-            V, C, convert = reduce(V, C, i, bundle)
+            R = reduce(V, C, i, bundle)
 
+            V, C = valuations(R), constraints(R)
             # Recursive application, as the removed items may cause items worth
             # less than α to be worth α or more after a new normalization.
-            V, C, prev_convert = reduce(V, C, α)
+            R′ = reduce(V, C, α)
 
-            # The converters have to be applied in reverse.
-            return V, C, (A) -> convert(prev_convert(A))
+            # Combine the reductions
+            return chain(R, R′)
         end
     end
 
-    return V, C, (A) -> A
+    # Return an empty reduction
+    return Reduction(V, C)
 end
 
 
@@ -159,9 +159,9 @@ end
 
 Create an ordered instance for the given weights and categories. The items are
 reorded such that each category has a continous range of indices for its items.
-Returns new additive valutations, an array of `OrderedCategory` objects and
-a function that converts an allocation in the ordered instance to one for the
-original instance.
+Returns a reduction, with a transformation that converts an allocation to one in
+the original instance where each agent gets at least the same value as in the
+ordered instance.
 """
 function order(V::Additive, C::Counts)
     N = agents(V)
@@ -178,20 +178,23 @@ function order(V::Additive, C::Counts)
         m += length(c)
     end
 
-    return Additive(Vo), Co, (A) -> revert(V, C, Co, A)
+    V′, C′ = Additive(Vo), Counts(Co)
+
+    return Reduction(V′, C′, agents(V), items(V), A -> revert(V, C, C′, A))
 end
 
 
 """
-    revert(V::Additive, C::Counts, Co::Vector{OrderedCategory}, A)
+    revert(V::Additive, C::Counts, C′::Counts, A)
 
-Convert an allocation for the ordered instance to one for the original instance.
+Convert an allocation for the ordered instance (`C′`) to one for the original
+instance `(V, C)`.
 """
-function revert(V::Additive, C::Counts, Co::Vector{OrderedCategory}, A)
+function revert(V::Additive, C::Counts, C′::Counts, A)
     A′ = Allocation(na(A), ni(A))
 
-    for (unordered_category, ordered_category) in zip(C, Co)
-        items = copy(unordered_category.members)
+    for (unordered_category, ordered_category) in zip(C, C′)
+        items = [g for g in unordered_category]
         for g in ordered_category
             i = owner(A, g)
 

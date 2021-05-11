@@ -531,7 +531,12 @@ end
         V = Valuation([1 1 1 0 0 0 0 0 0
                        0 0 0 0 0 0 0 0 0
                        0 0 0 0 0 0 0 0 0])
-        res = alloc_bkv18_2(V)
+        A = alloc_bkv18_2(V).alloc
+        for g = 4:9
+            @test !owned(A, g)
+        end
+
+        res = alloc_bkv18_2(V, complete=true)
         @test res.mnw == 3
         A = res.alloc
         for i in agents(A)
