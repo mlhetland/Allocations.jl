@@ -666,7 +666,8 @@ item(R::Reduction, g) = R.λg[g]
 
 Assumes that R₂ is a reduction of the reduced instance of R₁. Combines the two
 reductions, so that the original instance is the original instance of R₁ and the
-reduced instance is the reduced instance of R₂.
+reduced instance is the reduced instance of R₂ (essentially diagram-order
+composition of the reductions).
 """
 function chain(R₁::Reduction, R₂::Reduction)
     return Reduction(
