@@ -126,11 +126,9 @@ function order(V::Additive, C::Counts)
         m += length(c)
     end
 
-    # For goods, a direct translation does not exist nor make sense.
-    λi, λg = collect(agents(V)), collect(items(V))
     V′, C′ = Additive(Vo), Counts(Co)
 
-    return Reduction(V′, C′, λi, λg, A -> revert(V, C, C′, A))
+    return Reduction(V′, C′, agents(V), items(V), A -> revert(V, C, C′, A))
 end
 
 

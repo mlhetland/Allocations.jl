@@ -563,30 +563,41 @@ graph(C::Conflicts) = C.graph
 
 
 """
-    mutable struct Reduction{S <: Valuation, T <: Constraint}
+    mutable struct Reduction{S, T, U, V}
 
 A reduction from one instance of a fair allocation problem to another. Contains
-information about the `Valuation` object of type `S` and, if needed, the
-`Constraint` object of type `T`, of the reduced instance. In addition, the
-reduction contains two mappings, `λi` and `λg`, from, respectively, agents and
-items in the reduced instance to their identifiers in the original instance. The
-reduction also contains a way to convert an allocation.
+information about the valuations in the reduced instance, through an object of
+type `S`. There must exist functions `na(s::S)` and `ni(s::S)` that return the
+number of agents and items in the reduced instance. The reduction can also
+contain information about the constraints in the reduced instance, through an
+object of type `T`.
+
+In addition, the reduction contains two mappings, `λi` (of type `U`) and `λg`
+(of type `V`). Both types should be indexable (for `i ∈ 1:na(s)` and `g ∈
+1:ni(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and item
+identifier in the original instance of, respectively, agent `i` and item `g` in
+the reduced instance.
+
+The reduction also contains a function that can convert an allocation in the
+reduced instance to one in the original instance.
+
+The default constructor is `Reduction(V, C, λi, λg, transform::Function)`.
 """
-mutable struct Reduction{S <: Valuation, T <: Constraint}
+mutable struct Reduction{S, T, U, V}
     V::S
-    C::Union{T, Nothing}
-    λi::Vector{Int64}
-    λg::Vector{Int64}
+    C::T
+    λi::U
+    λg::V
     transform::Function
 end
 
 
 """
-    Reduction(V, λi, λg, revert)
+    Reduction(V, λi, λg, transform)
 
 A simplified constructor for when there are no constraints.
 """
-Reduction(V, λi, λg, revert) = Reduction(V, nothing, λi, λg, revert)
+Reduction(V, λi, λg, transform) = Reduction(V, nothing, λi, λg, transform)
 
 
 """
@@ -595,7 +606,7 @@ Reduction(V, λi, λg, revert) = Reduction(V, nothing, λi, λg, revert)
 A simplified constructor for when either no changes have been performed or
 changes only concern the valuations and/or constraints.
 """
-Reduction(V, C) = Reduction(V, C, collect(agents(V)), collect(items(V)), identity)
+Reduction(V, C) = Reduction(V, C, agents(V), items(V), identity)
 
 
 """
@@ -660,8 +671,8 @@ reduced instance is the reduced instance of R₂.
 function chain(R₁::Reduction, R₂::Reduction)
     return Reduction(
             R₂.V, R₂.C,
-            [agent(R₁, i) for i in R₂.λi],
-            [item(R₁, g) for g in R₂.λg],
+            [agent(R₁, agent(R₂, i)) for i in 1:na(R₂.V)],
+            [item(R₁, item(R₂, g)) for g in 1:ni(R₂.V)],
             (A) -> transform(R₁, transform(R₂, A))
         )
 end
