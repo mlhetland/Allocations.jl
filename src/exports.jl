@@ -4,6 +4,7 @@ export
     Conflicts,
     Counts,
     OrderedCategory,
+    Reduction,
     Valuation,
     Valuation,
     agents,
