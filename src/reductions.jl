@@ -39,7 +39,7 @@ end
 
 
 """
-    reduce(V::Submodular, agent, B)
+    reduce(V::Submodular, i, B)
 
 Reduce the instance given by V to a new instance by giving the supplied agent
 the supplied bundle, `B`. Returns a submodular valuation, where each remaining
@@ -49,17 +49,19 @@ instance. Additionally, returns a function that transforms an allocation in the
 reduced instance to one for the original instance, including giving bundle B to
 the supplied agent.
 """
-function reduce(V::Submodular, agent, B)
+function reduce(V::Submodular, i, B)
 
     N, M = agents(V), items(V)
 
     # Translation table
-    Δg = [g for g in M if g ∉ B]
+    λg = [g for g in M if g ∉ B]
+    λi = [j for j in N if j != i]
 
-    Vf′ = [B -> value(V, i, Set(Δg[g] for g in B)) for i in N if i != agent]
-    V′ = Submodular(Vf′, length(Δg))
+    Vf′ = [B -> value(V, j, Set(λg[g] for g in B)) for j in λi]
+    V′ = Submodular(Vf′, length(λg))
 
-    return V′, (A) -> revert(Δg, agent, B, A)
+
+    return Reduction(V′, λi, λg, (A) -> revert(λg, i, B, A))
 
 end
 
@@ -129,28 +131,29 @@ end
 
 
 """
-    reduce(V::Submodular, α::Float64)
+    reduce(V::Valuation, α::Float64)
 
 Reduce an instance by giving any agent that value an individual item at greater
 than or equal to α the item. This reduction is performed recursively until no
 more such items exists.
 """
-function reduce(V::Submodular, α::Float64)
+function reduce(V::Valuation, α::Float64)
     N, M = agents(V), items(V)
 
     for i in N, g in M
         if value(V, i, g) ≥ α
-            V, convert = reduce(V, i, Set(g))
+            R = reduce(V, i, Set(g))
+            V = valuations(R)
 
             # Recursive application on the new instance
-            V, prev_convert = reduce(V, α)
+            R′ = reduce(V, α)
 
-            # The converters have to be applied in reverse
-            return V, (A) -> convert(prev_convert(A))
+            # Combine the reductions
+            return chain(R, R′)
         end
     end
 
-    return V, (A) -> A
+    return Reduction(V)
 end
 
 

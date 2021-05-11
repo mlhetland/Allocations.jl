@@ -508,13 +508,14 @@ function alloc_ghss18_4(V::Submodular, MMS)
     V = Submodular([B -> value(Vo, i, B) / MMS[i] for i in agents(Vo)], ni(Vo))
 
     # Allocate all items worth at least 1/3
-    V, convert = reduce(V, 1/3)
+    R = reduce(V, 1/3)
+    V = valuations(R)
 
     A = Allocation(V)
 
     # In case all agents have received an item worth at least 1/3
     if na(V) == 0
-        A = convert(A)
+        A = transform(R, A)
 
         # The algorithm does not specify what to do in this situation. We
         # therefore simply allocate the goods randomly to the agents.
@@ -561,15 +562,13 @@ function alloc_ghss18_4(V::Submodular, MMS)
 
         # If no sufficently large improvement can be made, then the MMS values
         # are incorrect (too large)
-        # TODO: Convert `i` back to the proper number of the original instance
         if !found
-            return (alloc=nothing, fail=true, agent=i)
+            return (alloc=nothing, fail=true, agent=item(R, i))
         end
     end
 
     # Convert the allocation to one for the original instance
-    A = convert(A)
-    return (alloc=A, fail=false, agent=0)
+    return (alloc=transform(R, A), fail=false, agent=0)
 
 end
 
