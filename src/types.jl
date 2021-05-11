@@ -567,14 +567,14 @@ graph(C::Conflicts) = C.graph
 
 A reduction from one instance of a fair allocation problem to another. Contains
 information about the valuations in the reduced instance, through an object of
-type `S`. There must exist functions `na(s::S)` and `ni(s::S)` that return the
-number of agents and items in the reduced instance. The reduction can also
-contain information about the constraints in the reduced instance, through an
-object of type `T`.
+type `S`. There must exist functions `agents(s::S)` and `items(s::S)` that
+return an iterator of, respectively, the agents and items in the reduced
+instance. The reduction can also contain information about the constraints in
+the reduced instance, through an object of type `T`.
 
 In addition, the reduction contains two mappings, `λi` (of type `U`) and `λg`
-(of type `V`). Both types should be indexable (for `i ∈ 1:na(s)` and `g ∈
-1:ni(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and item
+(of type `V`). Both types should be indexable (for `i ∈ agents(s)` and `g ∈
+items(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and item
 identifier in the original instance of, respectively, agent `i` and item `g` in
 the reduced instance.
 
@@ -671,8 +671,8 @@ reduced instance is the reduced instance of R₂.
 function chain(R₁::Reduction, R₂::Reduction)
     return Reduction(
             R₂.V, R₂.C,
-            [agent(R₁, agent(R₂, i)) for i in 1:na(R₂.V)],
-            [item(R₁, item(R₂, g)) for g in 1:ni(R₂.V)],
+            [agent(R₁, agent(R₂, i)) for i in agents(R₂.V)],
+            [item(R₁, item(R₂, g)) for g in items(R₂.V)],
             (A) -> transform(R₁, transform(R₂, A))
         )
 end
