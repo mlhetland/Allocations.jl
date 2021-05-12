@@ -578,6 +578,7 @@ end
 
         @test !res.fail
 
+        # The value each agent receives should be at least 1/3 * μᵢ = 2/3
         A = res.alloc
         for i in agents(V)
             @test value(V, i, bundle(A, i)) ≥ 2/3
@@ -586,69 +587,77 @@ end
         # Test without knowing MMS value
         res = alloc_ghss18_4b(V)
 
+        # The value each agent receives should be at least 1/3 * μᵢ = 2/3
         for i in agents(V)
             @test value(V, i, bundle(A, i)) ≥ 2/3
         end
     end
 
-    @testset "1/2-MMS with card. constr." begin
+    @testset "MMS approximation with card. constr." begin
 
-        V = V₀
+        # A default test set for all algorithms
+        V₁ = V₀
+        C₁ = Counts(
+            [1, 3, 7, 9]          => 1,
+            [4, 6, 8, 10, 11, 12] => 3,
+            [2, 5]                => 2,
+        )
+        MMSs₁ = [mms(V₁, i, C₁).mms for i in agents(V₁)]
 
-        function test_cardinality_constraints_half_mms(V, C)
+        # Check if alg finds an allocation that is complete, does not break the
+        # cardinality constraints and gives each agent a bundle valued at no
+        # less than `α * MMSs[i]`.
+        function test_alg(alg, α, V, C, MMSs)
 
-            A = alloc_half_mms(V, C).alloc
+            A = alg(V, C).alloc
 
             @test A isa Allocation
-            # Test that all items are allocated properly
-            for g in items(V)
-                @test owner(A, g) isa Int
-            end
+            @test check_partition(A)
 
             # The allocation must not break the cardinality constraints
             for i in agents(V), c in C
-                @test sum(owner(A, g) == i for g in c) <= threshold(c)
+                @test sum(owner(A, g) == i for g in c) ≤ threshold(c)
             end
 
             for i in agents(V)
-                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C).mms
+                @test value(V, i, bundle(A, i)) ≥ α * MMSs[i]
             end
 
         end
 
-        let
+        @testset "1/3-MMS - BB18(3)" begin
 
-            C = Counts(
-                [1, 3, 7, 9]          => 1,
-                [4, 6, 8, 10, 11, 12] => 3,
-                [2, 5]                => 2,
-            )
-
-            test_cardinality_constraints_half_mms(V, C)
+            test_alg(alloc_bb18_3, 1/3, V₁, C₁, MMSs₁)
 
         end
 
-        # The second half of the bag filling algorithm, where the floor_n(C)
-        # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
-        # used instead, does not often get ran when a random instance is
-        # created. Thus, this tests the workings of that part
+        @testset "1/2-MMS - " begin
 
-        let
+            test_alg(alloc_half_mms, 1/2, V₁, C₁, MMSs₁)
 
-            C = Counts(
-                [1, 5, 6]           => 3,
-                [2]                 => 1,
-                [3]                 => 1,
-                [4]                 => 3,
-                [7, 8, 9, 10]       => 5,
-            )
 
-            V = Additive([
-                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
-                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
-            ])
+            # The second half of the bag filling algorithm, where the floor_n(C)
+            # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
+            # used instead, does not often get ran when a random instance is
+            # created. Thus, this tests the workings of that part
+            let
 
-            test_cardinality_constraints_half_mms(V, C)
+                C = Counts(
+                    [1, 5, 6]           => 3,
+                    [2]                 => 1,
+                    [3]                 => 1,
+                    [4]                 => 3,
+                    [7, 8, 9, 10]       => 5,
+                )
+
+                V = Additive([
+                    0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
+                    0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
+                ])
+
+                test_alg(alloc_half_mms, 1/2, V, C, [1, 1])
+
+            end
 
         end
 
