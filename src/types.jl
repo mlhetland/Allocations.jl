@@ -80,6 +80,15 @@ Allocation(n::Int, m::Int) =
     Allocation([Set{Int}() for i = 1:n], [Set{Int}() for i = 1:m])
 
 
+"""
+     Allocation(V::Valuation)
+
+Construct an empty allocation with a number of agents and items equal to that of
+the instance `V`.
+"""
+Allocation(V::Valuation) = Allocation(na(V), ni(V))
+
+
 bundle(A) = A.bundle
 owners(A) = A.owners
 

@@ -200,7 +200,7 @@ end
 
 
 """
-    alloc_bkv18_1(V)
+    alloc_bkv18_1(V; randpri=true)
 
 The first algorithm (**Alg-Identical**) described by Barman, Krishnamurty and
 Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
@@ -212,21 +212,26 @@ raw product.) The result will also be envy-free up to any item (EFX).
 
 The algorithm follows a straightforward greedy allocation procedure, where in
 each iteration, the most valuable item is allocated to the agent with the lowest
-utility.
+utility. By default, ties are broken by giving the agents random priorities; if
+`randpri` is set to false, they are instead broken lexicographically (as
+specified by Barman et al.), so that the agent with the lower index is
+preferred.
 """
-function alloc_bkv18_1(V)
+function alloc_bkv18_1(V; randpri=true)
 
-    n, m = na(V), ni(V)
-    v = [value(V, 1, g) for g = 1:m]
+    N, M = agents(V), items(V)
+    v = [value(V, 1, g) for g in M]
 
-    pq = PriorityQueue{Int, Int}(i => 0 for i = 1:n)
+    π = randpri ? shuffle(N) : N
 
-    A = Allocation(n, m)
+    pq = PriorityQueue(i => (0, p) for (i, p) in zip(N, π))
+
+    A = Allocation(V)
 
     for g in sortperm(v, rev=true)
-        i, u = peek(pq)
+        i, (u, p) = peek(pq)
         give!(A, i, g)
-        pq[i] = u + v[g]
+        pq[i] = (u + v[g], p)
     end
 
     return (alloc = A,)
@@ -272,8 +277,9 @@ Following the algorithm of Barman et al., the tie-breaking procedure (Algorithm
 allocation is transformed into the lexically greatest MNW, according to some
 ordering of the agents, providing group-strategyproofness (GSP) in addition to
 the EF1 and PO guarantees that follow from MNW. By default, the agent
-ordering/priority is random; if this randomization is turned off, the default
-ordering is used, with agent `1` receiving the highest priority, etc.
+ordering/priority is random; if this randomization is turned off (with `randpri`
+set to false), the default ordering is used, with agent `1` receiving the
+highest priority, etc.
 
 !!! note
 
