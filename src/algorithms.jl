@@ -274,9 +274,9 @@ procedure.
 
 Following the algorithm of Barman et al., the tie-breaking procedure (Algorithm
 1) of Halpern et al. (http://arxiv.org/abs/2007.06073) is used, where the MNW
-allocation is transformed into the lexically greatest MNW, according to some
-ordering of the agents, providing group-strategyproofness (GSP) in addition to
-the EF1 and PO guarantees that follow from MNW. By default, the agent
+allocation is transformed into the lexicographically greatest MNW, according to
+some ordering of the agents, providing group-strategyproofness (GSP) in addition
+to the EF1 and PO guarantees that follow from MNW. By default, the agent
 ordering/priority is random; if this randomization is turned off (with `randpri`
 set to false), the default ordering is used, with agent `1` receiving the
 highest priority, etc.
