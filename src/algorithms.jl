@@ -494,24 +494,26 @@ const alloc_hpps20_1 = alloc_bkv18_2
 
 
 """
-    alloc_ghss18_4(V::Submodular, MMS)
+    alloc_ghss18_4(V::Submodular, MMSs)
 
 The fourth algorithm (**Algorithm 4**) described by Ghodsi et al. in the 2018
 paper [Fair allocation of Indivisible Goods: Improvements and
 Generalizations](https://arxiv.org/abs/1704.00222). The algorithm finds a
-1/3-approximate MMS allocation for a given submodular instance and MMS values.
-If the supplied MMS values are higher than the actual MMS values, the method may
-fail. In that case, this will be indicated in the result, where `res.fail` will be
-set to true and `res.agent` will be set to the agent last considered when the
-method failed to improve. If the MMS values are unknown, use `alloc_ghss18_4b`.
+1/3-approximate MMS allocation for a given submodular instance and corresponding
+maximin shares for the agents (`MMSs[i]` should be the MMS of agent `i`). If the
+supplied maximin shares, are higher than the actual maximin shares, the method
+may fail. In that case, this will be indicated in the result, where `res.fail`
+will be set to true and `res.agent` will be set to the agent last considered
+when the method failed to improve. If the maximin shares are unknown, use
+`alloc_ghss18_4b`.
 """
-function alloc_ghss18_4(V::Submodular, MMS)
+function alloc_ghss18_4(V::Submodular, MMSs)
 
-    @assert na(V) == length(MMS) "There must be one MMS value per agent"
+    @assert na(V) == length(MMSs) "There must be one MMS per agent"
 
-    # Scale valuations so that MMS = 1
+    # Scale valuations so that each agent's MMS is 1
     Vo = V
-    V = Submodular([B -> (value(Vo, i, B) / MMS[i]) for i in agents(Vo)], ni(Vo))
+    V = Submodular([B -> (value(Vo, i, B) / MMSs[i]) for i in agents(Vo)], ni(Vo))
 
     # Allocate all items worth at least 1/3
     R = reduce(V, 1/3)
@@ -551,8 +553,11 @@ function alloc_ghss18_4(V::Submodular, MMS)
 
             Bᵢ, Bⱼ = bundle(A, i), bundle(A, j)
 
-            # Only the value of i and j will change, do not need to check entire
-            # ex(A) in order to detect if the item works or not
+            # Only the contribution of agents `i` and `j` to `ex(A)` (the
+            # function defined by Ghodsi et al.) will change. Thus, we do not
+            # need to compute the entire value and can simply check the
+            # difference in the contributions of agents `i` and `j` before and
+            # after moving `g`.
             v = value(V′, i, Bᵢ) + value(V′, j, Bⱼ)
             v′ = value(V′, i, Bᵢ ∪ g) + value(V′, j, symdiff(Bⱼ, g))
 
@@ -586,11 +591,11 @@ A variation on the fourth algorithm (**Algorithm 4**) described by Ghodsi et al.
 in the 2018 paper [Fair allocation of Indivisible Goods: Improvements and
 Generalizations](https://arxiv.org/abs/1704.00222). The algorithm finds a
 1/3-approximate MMS allocation for a given submodular instance. The method
-starts by overestimating the MMS values of the agents and slowly decreasing the
-MMS value of specific agents until `alloc_ghss18_4` returns an allocation.
+starts by overestimating the MMS of each agent and slowly decreasing the MMS of
+specific agents until `alloc_ghss18_4` returns an allocation.
 
-The amount that the MMS value should be reduced by in each iteration is not
-specified by Ghodsi et al. One can show that if the factor is `1/(1 + 1/x)`,
+The amount that the MMS of an agent should be reduced by in each iteration is
+not specified by Ghodsi et al. One can show that if the factor is `1/(1 + 1/x)`,
 where `x ≥ 3n - 1`, then the algorithm will successfully find a 1/3-approximate
 MMS allocation. One way to show this, is to modify Lemma 4.6 in their paper to
 assume that each of the bundles `Sᵢ` is valued at least `1/(1 + 1/x)`. Using
@@ -607,12 +612,12 @@ function alloc_ghss18_4b(V::Submodular; a=3, x_warn=true)
         @warn("The value of `a` may be too small")
     end
 
-    MMS = Vector{Float64}([value(V, i, items(V)) for i in agents(V)])
+    MMSs = Vector{Float64}([value(V, i, items(V)) for i in agents(V)])
 
-    res = alloc_ghss18_4(V, MMS)
+    res = alloc_ghss18_4(V, MMSs)
     while res.fail
-        MMS[res.agent] /= (1 + 1/(a * na(V)))
-        res = alloc_ghss18_4(V, MMS)
+        MMSs[res.agent] /= (1 + 1/(a * na(V)))
+        res = alloc_ghss18_4(V, MMSs)
     end
 
     return (alloc=res.alloc,)
