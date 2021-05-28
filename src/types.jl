@@ -89,6 +89,14 @@ the instance `V`.
 Allocation(V) = Allocation(na(V), ni(V))
 
 
+"""
+    Allocation()
+
+Construct an empty allocation with zero agents and items.
+"""
+Allocation() = Allocation(0, 0)
+
+
 bundle(A) = A.bundle
 owners(A) = A.owners
 

@@ -79,7 +79,7 @@ function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
 
     # Use an empty allocation if there are no more agents remaining
     if n == 0
-        A = Allocation(0, 0)
+        A = Allocation()
     else
         # If there is not enough value remaining for the last agent, the
         # supplied α does not work
@@ -87,7 +87,7 @@ function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
             return (alloc=nothing, fail=true)
         end
 
-        A = Allocation(1, ni(V))
+        A = Allocation(V)
         give!(A, 1, items(V))
     end
 
