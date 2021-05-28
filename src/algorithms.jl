@@ -505,7 +505,7 @@ function alloc_ghss18_4(V::Submodular, MMS)
 
     # Scale valuations so that MMS = 1
     Vo = V
-    V = Submodular([B -> value(Vo, i, B) / MMS[i] for i in agents(Vo)], ni(Vo))
+    V = Submodular([B -> (value(Vo, i, B) / MMS[i]) for i in agents(Vo)], ni(Vo))
 
     # Allocate all items worth at least 1/3
     R = reduce(V, 1/3)
@@ -587,7 +587,7 @@ The amount that the MMS value should be reduced by in each iteration is not
 specified by Ghodsi et al. One can show that if the factor is `1/(1 + 1/x)`,
 where `x ≥ 3n - 1`, then the algorithm will successfully find a 1/3-approximate
 MMS allocation. One way to show this, is to modify Lemma 4.6 in their paper to
-assume that each of the bundles `Sᵢ` are valued at least `1/(1 + 1/x)`. Using
+assume that each of the bundles `Sᵢ` is valued at least `1/(1 + 1/x)`. Using
 this modified version of Lemma 4.6, one can modify the proof of Theorem 4.7 to
 show that as long as `x ≥ 3n - 1`, the change in expectance from moving an item
 is at least `1/(3m)`. The value of `x` used in this implementation is `x = an`,
@@ -624,10 +624,10 @@ Under Cardinality Constraints] (https://doi.org/10.24963/ijcai.2018/13). Finds a
 under cardinality constraints by converting the additive instance under
 cardinality constraints to a submodular instance without cardinality
 constraints. The allocation is then found by using the method of Ghodsi et al.
-(`alloc_ghhs18_4b`), with possible reallocation of items to suffice the
-feasibility requirements. Both keyword arguments, `a` and `ghss18_4b_warn`, are
-passed directly to `alloc_ghhs18_4b` as respectively the keyword arguments `a`
-and `x_warn`. See `?alloc_ghhs18_4b` for documentation on how to use them.
+(`alloc_ghhs18_4b`), with possible reallocation of items to satisfy the
+constraints. Both keyword arguments, `a` and `ghss18_4b_warn`, are passed
+directly to `alloc_ghhs18_4b` as respectively the keyword arguments `a` and
+`x_warn`. See [`alloc_ghhs18_4b`](@ref) for documentation on how to use them.
 """
 function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
 
@@ -644,7 +644,7 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
             # the given category.
             n_items = min(threshold(c), length(overlap))
 
-            # Give the agent the `n_items` most valueable items in the overlap.
+            # Give the agent the `n_items` most valuable items in the overlap.
             total += sum(partialsort!(overlap, 1:n_items, rev=true))
         end
 
@@ -682,4 +682,3 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
     return (alloc=A,)
 
 end
-

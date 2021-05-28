@@ -41,8 +41,8 @@ end
 """
     reduce(V::Submodular, i, B)
 
-Reduce the instance given by V to a new instance by giving the supplied agent,
-`i`, the supplied bundle, `B`. Returns a reduction, where the transformation, in
+Reduce the instance given by `V` to a new instance by giving the specified
+bundle, `B`, to agent `i`. Returns a reduction, where the transformation, in
 addition to converting the allocation to one for the original instance,
 allocates `B` to `i`.
 """
@@ -56,7 +56,6 @@ function reduce(V::Submodular, i, B)
 
     Vf′ = [B -> value(V, j, Set(λg[g] for g in B)) for j in λi]
     V′ = Submodular(Vf′, length(λg))
-
 
     return Reduction(V′, λi, λg, (A) -> revert(λg, i, B, A))
 
@@ -130,9 +129,8 @@ end
 """
     reduce(V::Valuation, α::Float64)
 
-Reduce a reduced instance by giving any agent that value an individual item at
-greater than or equal to α the item. This reduction is performed recursively
-until no more such items exists.
+Produce a reduced instance by giving an item to any agent that values it at `α`
+or more. This reduction is performed repeatedly, until no such item exists.
 """
 function reduce(V::Valuation, α::Float64)
     N, M = agents(V), items(V)

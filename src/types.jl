@@ -266,10 +266,10 @@ end
 Fill out the allocation by distributing the unallocated items randomly.
 """
 function fill_random!(A)
-    n, m = na(A), ni(A)
-    for g in 1:m
+    N, M = agents(A), items(A)
+    for g in M
         owned(A, g) && continue
-        i = rand(1:n)
+        i = rand(N)
         give!(A, i, g)
     end
 end
@@ -478,10 +478,12 @@ normalize(V::Additive) =
 """
     struct Submodular <: Valuation
 
-A submodular valuation oracle, representing how each agent values all possible
-bundles. The valuations are constructed from a set of `n` valuation oracles, one
-for each agent, supplied to the default constructor. Each valuation function
-should when supplied with a set of items, return the value of that set of items.
+A submodular valuation profile, representing how each agent values all possible
+bundles. The profile is constructed from a set of `n` submodular valuation
+functions, one per agent, as well as the number of items, `m`. The valuation
+functions should, when supplied with a set of items (a subset of `1:m`), return
+the value of that set of items to the given agent (i.e., acting as so-called
+*query oracles*).
 """
 struct Submodular <: Valuation
     oracles::Vector{Function}

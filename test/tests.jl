@@ -638,7 +638,7 @@ end
 
             # The second half of the bag filling algorithm, where the floor_n(C)
             # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
-            # used instead, does not often get ran when a random instance is
+            # used instead, does not often get run when a random instance is
             # created. Thus, this tests the workings of that part
             let
 
