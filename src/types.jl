@@ -298,7 +298,7 @@ abstract type Valuation end
 Construct an empty allocation with a number of agents and items equal to that of
 the instance `V`.
 """
-Allocation(V) = Allocation(na(V), ni(V))
+Allocation(V::Valuation) = Allocation(na(V), ni(V))
 
 
 """
