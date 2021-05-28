@@ -80,15 +80,6 @@ Allocation(n::Int, m::Int) =
     Allocation([Set{Int}() for i = 1:n], [Set{Int}() for i = 1:m])
 
 
-"""
-     Allocation(V::Valuation)
-
-Construct an empty allocation with a number of agents and items equal to that of
-the instance `V`.
-"""
-Allocation(V::Valuation) = Allocation(na(V), ni(V))
-
-
 bundle(A) = A.bundle
 owners(A) = A.owners
 
@@ -276,6 +267,15 @@ Generalizations](https://dl.acm.org/doi/10.1145/3219166.3219238) by Ghodsi et
 al., 2018).
 """
 abstract type Valuation end
+
+
+"""
+     Allocation(V::Valuation)
+
+Construct an empty allocation with a number of agents and items equal to that of
+the instance `V`.
+"""
+Allocation(V::Valuation) = Allocation(na(V), ni(V))
 
 
 """
