@@ -565,7 +565,7 @@ end
 
         # A function that creates a new set, with all items being incremented by
         # 1 (if m ∈ B, then 1 is in the new set). Setting the valuation of an
-        # agent to v(inc(B)) gives the agent an MMS value of 2.
+        # agent to `v(m, inc(m, B))` gives the agent an MMS of 2.
         inc(m, B) = Set(mod(g, 1:m) for g in B)
 
         n = 5
@@ -573,7 +573,7 @@ end
         Vf = vcat([B -> v(m, B) for _ in 1:(n - 1)], [B -> v(m, inc(m, B))])
         V = Submodular(Vf, m)
 
-        # Test with knowing the MMS value
+        # Test when the MMS of each agent is known
         res = alloc_ghss18_4(V, repeat([2], n))
 
         @test !res.fail
@@ -584,7 +584,7 @@ end
             @test value(V, i, bundle(A, i)) ≥ 2/3
         end
 
-        # Test without knowing MMS value
+        # Test when the MMS of each agent is unknown
         res = alloc_ghss18_4b(V)
 
         # The value each agent receives should be at least 1/3 * μᵢ = 2/3

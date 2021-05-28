@@ -81,15 +81,6 @@ Allocation(n::Int, m::Int) =
 
 
 """
-    Allocation(V::Valuation)
-
-Construct an empty allocation with a number of agents and items equal to that of
-the instance `V`.
-"""
-Allocation(V) = Allocation(na(V), ni(V))
-
-
-"""
     Allocation()
 
 Construct an empty allocation with zero agents and items.
@@ -299,6 +290,15 @@ Generalizations](https://dl.acm.org/doi/10.1145/3219166.3219238) by Ghodsi et
 al., 2018).
 """
 abstract type Valuation end
+
+
+"""
+    Allocation(V::Valuation)
+
+Construct an empty allocation with a number of agents and items equal to that of
+the instance `V`.
+"""
+Allocation(V) = Allocation(na(V), ni(V))
 
 
 """

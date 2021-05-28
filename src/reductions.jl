@@ -93,7 +93,7 @@ MMS guarantee of any remaining agents and all agents that are allocated a
 bundle in the reduction is guaranteed to value their bundle at least α of their
 MMS guarantee.
 """
-function reduce(V::Additive, C::Counts{OrderedCategory}, α::Float64)
+function reduce(V::Additive, C::Counts{OrderedCategory}, α::Real)
     N, n, M = agents(V), na(V), items(V)
 
     if n == 1 return reduce(V, C, 1, M) end
@@ -127,12 +127,12 @@ end
 
 
 """
-    reduce(V::Valuation, α::Float64)
+    reduce(V::Valuation, α::Real)
 
 Produce a reduced instance by giving an item to any agent that values it at `α`
 or more. This reduction is performed repeatedly, until no such item exists.
 """
-function reduce(V::Valuation, α::Float64)
+function reduce(V::Valuation, α::Real)
     N, M = agents(V), items(V)
 
     for i in N, g in M

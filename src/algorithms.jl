@@ -1,7 +1,7 @@
 using DataStructures
 
 """
-    alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
+    alloc_half_mms(V::Additive, C::Counts; α=0.5)
 
 Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
 First the instance is reduced to an ordered normalized instance where each good
@@ -23,7 +23,7 @@ guaranteed to succeed. Otherwise, the method will try to find an allocation with
 an approximation ratio of `α`, but may fail. In the latter case, the results
 will indicate a failure by setting `res.fail` to `true`.
 """
-function alloc_half_mms(V::Additive, C::Counts; α::Float64=0.5)
+function alloc_half_mms(V::Additive, C::Counts; α=0.5)
     R = order(V, C)
 
     # Normalize and allocate items worth α or more.
@@ -661,7 +661,13 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
     # Easy way to find overlap between agent's bundle and a category
     overlap(i, c) = bundle(A, i) ∩ c.members
 
-    # Check that no agent has more items from a category than allowed
+    # It is possible that the 1/3-approximate MMS allocation produced by
+    # `alloc_ghss18_4b` does not adhere to the cardinality constraints. If this
+    # is the case, then we for each non-adhering bundle, give away the
+    # corresponding agent's least-preferred items in the bundle from any
+    # category for which the bundle breaks the category's threshold. This does
+    # not result in a decrease in the agent's perceived valuation of their
+    # bundle based on the submodular valuations.
     for i in N, c in C
         B = overlap(i, c)
         # If there are more items than allowed
