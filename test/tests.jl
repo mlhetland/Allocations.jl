@@ -545,64 +545,119 @@ end
 
     end
 
-    @testset "1/2-MMS with card. constr." begin
+    @testset "GHSS18(4)" begin
 
-        V = V₀
+        # A modified version of the valuation function from the instance
+        # where the best possible allocation has α = 3/4. The MMS with this
+        # valuation function and m = 2n items, is 2.
+        function v(m, B)
+            if length(B) != 2
+                return length(B)
+            end
 
-        function test_cardinality_constraints_half_mms(V, C)
+            g, g′ = minimum(B), maximum(B)
+            if g == 1 && g′ == m || floor(g / 2) == floor(g′ / 2)
+                return 2
+            end
 
-            A = alloc_half_mms(V, C)
+            return 3/2
+        end
+
+        # A function that creates a new set, with all items being incremented by
+        # 1 (if m ∈ B, then 1 is in the new set). Setting the valuation of an
+        # agent to `v(m, inc(m, B))` gives the agent an MMS of 2.
+        inc(m, B) = Set(mod(g, 1:m) for g in B)
+
+        n = 5
+        m = 2n
+        Vf = vcat([B -> v(m, B) for _ in 1:(n - 1)], [B -> v(m, inc(m, B))])
+        V = Submodular(Vf, m)
+
+        # Test when the MMS of each agent is known
+        res = alloc_ghss18_4(V, repeat([2], n))
+
+        @test !res.fail
+
+        # The value each agent receives should be at least 1/3 * μᵢ = 2/3
+        A = res.alloc
+        for i in agents(V)
+            @test value(V, i, bundle(A, i)) ≥ 2/3
+        end
+
+        # Test when the MMS of each agent is unknown
+        res = alloc_ghss18_4b(V)
+
+        # The value each agent receives should be at least 1/3 * μᵢ = 2/3
+        for i in agents(V)
+            @test value(V, i, bundle(A, i)) ≥ 2/3
+        end
+    end
+
+    @testset "MMS approximation with card. constr." begin
+
+        # A default test set for all algorithms
+        V₁ = V₀
+        C₁ = Counts(
+            [1, 3, 7, 9]          => 1,
+            [4, 6, 8, 10, 11, 12] => 3,
+            [2, 5]                => 2,
+        )
+        MMSs₁ = [mms(V₁, i, C₁).mms for i in agents(V₁)]
+
+        # Check if alg finds an allocation that is complete, does not break the
+        # cardinality constraints and gives each agent a bundle valued at no
+        # less than `α * MMSs[i]`.
+        function test_alg(alg, α, V, C, MMSs)
+
+            A = alg(V, C).alloc
 
             @test A isa Allocation
-            # Test that all items are allocated properly
-            for g in items(V)
-                @test owner(A, g) isa Int
-            end
+            @test check_partition(A)
 
             # The allocation must not break the cardinality constraints
             for i in agents(V), c in C
-                @test sum(owner(A, g) == i for g in c) <= threshold(c)
+                @test sum(owner(A, g) == i for g in c) ≤ threshold(c)
             end
 
             for i in agents(V)
-                @test value(V, i, bundle(A, i)) >= 0.5 * mms(V, i, C).mms
+                @test value(V, i, bundle(A, i)) ≥ α * MMSs[i]
             end
 
         end
 
-        let
+        @testset "1/3-MMS - BB18(3)" begin
 
-            C = Counts(
-                [1, 3, 7, 9]          => 1,
-                [4, 6, 8, 10, 11, 12] => 3,
-                [2, 5]                => 2,
-            )
-
-            test_cardinality_constraints_half_mms(V, C)
+            test_alg(alloc_bb18_3, 1/3, V₁, C₁, MMSs₁)
 
         end
 
-        # The second half of the bag filling algorithm, where the floor_n(C)
-        # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
-        # used instead, does not often get ran when a random instance is
-        # created. Thus, this tests the workings of that part
+        @testset "1/2-MMS - " begin
 
-        let
+            test_alg(alloc_half_mms, 1/2, V₁, C₁, MMSs₁)
 
-            C = Counts(
-                [1, 5, 6]           => 3,
-                [2]                 => 1,
-                [3]                 => 1,
-                [4]                 => 3,
-                [7, 8, 9, 10]       => 5,
-            )
 
-            V = Additive([
-                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
-                0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
-            ])
+            # The second half of the bag filling algorithm, where the floor_n(C)
+            # highest-valued items are not worth 1/2 and thus ceil_n(C) must be
+            # used instead, does not often get run when a random instance is
+            # created. Thus, this tests the workings of that part
+            let
 
-            test_cardinality_constraints_half_mms(V, C)
+                C = Counts(
+                    [1, 5, 6]           => 3,
+                    [2]                 => 1,
+                    [3]                 => 1,
+                    [4]                 => 3,
+                    [7, 8, 9, 10]       => 5,
+                )
+
+                V = Additive([
+                    0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1;
+                    0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
+                ])
+
+                test_alg(alloc_half_mms, 1/2, V, C, [1, 1])
+
+            end
 
         end
 

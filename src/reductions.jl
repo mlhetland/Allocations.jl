@@ -39,6 +39,30 @@ end
 
 
 """
+    reduce(V::Submodular, i, B)
+
+Reduce the instance given by `V` to a new instance by giving the specified
+bundle, `B`, to agent `i`. Returns a reduction, where the transformation, in
+addition to converting the allocation to one for the original instance,
+allocates `B` to `i`.
+"""
+function reduce(V::Submodular, i, B)
+
+    N, M = agents(V), items(V)
+
+    # Translation table
+    λg = [g for g in M if g ∉ B]
+    λi = [j for j in N if j != i]
+
+    Vf′ = [B -> value(V, j, Set(λg[g] for g in B)) for j in λi]
+    V′ = Submodular(Vf′, length(λg))
+
+    return Reduction(V′, λi, λg, (A) -> revert(λg, i, B, A))
+
+end
+
+
+"""
     revert(translate::Vector{Int}, i, B, A::Allocation)
 
 Convert an allocation for a reduced instance to one for the original instance,
@@ -69,7 +93,7 @@ MMS guarantee of any remaining agents and all agents that are allocated a
 bundle in the reduction is guaranteed to value their bundle at least α of their
 MMS guarantee.
 """
-function reduce(V::Additive, C::Counts{OrderedCategory}, α::Float64)
+function reduce(V::Additive, C::Counts{OrderedCategory}, α::Real)
     N, n, M = agents(V), na(V), items(V)
 
     if n == 1 return reduce(V, C, 1, M) end
@@ -99,6 +123,32 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, α::Float64)
 
     # Return an empty reduction
     return Reduction(V, C)
+end
+
+
+"""
+    reduce(V::Valuation, α::Real)
+
+Produce a reduced instance by giving an item to any agent that values it at `α`
+or more. This reduction is performed repeatedly, until no such item exists.
+"""
+function reduce(V::Valuation, α::Real)
+    N, M = agents(V), items(V)
+
+    for i in N, g in M
+        if value(V, i, g) ≥ α
+            R = reduce(V, i, Set(g))
+            V = valuations(R)
+
+            # Recursive application on the new instance
+            R′ = reduce(V, α)
+
+            # Combine the reductions
+            return chain(R, R′)
+        end
+    end
+
+    return Reduction(V)
 end
 
 

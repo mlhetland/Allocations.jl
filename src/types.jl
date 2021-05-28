@@ -80,6 +80,14 @@ Allocation(n::Int, m::Int) =
     Allocation([Set{Int}() for i = 1:n], [Set{Int}() for i = 1:m])
 
 
+"""
+    Allocation()
+
+Construct an empty allocation with zero agents and items.
+"""
+Allocation() = Allocation(0, 0)
+
+
 bundle(A) = A.bundle
 owners(A) = A.owners
 
@@ -251,6 +259,21 @@ function fill_even!(A)
 end
 
 
+"""
+    fill_random!(A)
+
+Fill out the allocation by distributing the unallocated items randomly.
+"""
+function fill_random!(A)
+    N, M = agents(A), items(A)
+    for g in M
+        owned(A, g) && continue
+        i = rand(N)
+        give!(A, i, g)
+    end
+end
+
+
 ## Valuations ################################################################
 
 
@@ -270,7 +293,7 @@ abstract type Valuation end
 
 
 """
-     Allocation(V::Valuation)
+    Allocation(V::Valuation)
 
 Construct an empty allocation with a number of agents and items equal to that of
 the instance `V`.
@@ -459,6 +482,28 @@ Scale the values of `V` such that ``v_i(M) = n`` for all agents ``i``.
 normalize(V::Additive) =
     Additive(V.values .* [na(V) / value(V, i, items(V)) for i in agents(V)])
 
+
+"""
+    struct Submodular <: Valuation
+
+A submodular valuation profile, representing how each agent values all possible
+bundles. The profile is constructed from a set of `n` submodular valuation
+functions, one per agent, as well as the number of items, `m`. The valuation
+functions should, when supplied with a set of items (a subset of `1:m`), return
+the value of that set of items to the given agent (i.e., acting as so-called
+*query oracles*).
+"""
+struct Submodular <: Valuation
+    oracles::Vector{Function}
+    m::Int
+end
+
+
+na(V::Submodular) = length(V.oracles)
+ni(V::Submodular) = V.m
+
+value(V::Submodular, i, B) = V.oracles[i](Set(B))
+value(V::Submodular, i, g::Int) = value(V, i, Set(g))
 
 ## Constraints ###############################################################
 

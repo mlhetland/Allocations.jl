@@ -1,7 +1,7 @@
 using DataStructures
 
 """
-    alloc_half_mms(V::Additive, C::Counts)
+    alloc_half_mms(V::Additive, C::Counts; α=0.5)
 
 Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
 First the instance is reduced to an ordered normalized instance where each good
@@ -17,12 +17,17 @@ the instance was ordered normalized and without items worth 1/2 or more, the
 bundle created will always be worth more than 1/2 to one of the remaining
 agents before the procedure runs out of items to add to it or convert from low-
 to high-valued.
+
+Another approximation ratio, `α`, can be supplied. If `α ≤ 0.5` the algorithm is
+guaranteed to succeed. Otherwise, the method will try to find an allocation with
+an approximation ratio of `α`, but may fail. In the latter case, the results
+will indicate a failure by setting `res.fail` to `true`.
 """
-function alloc_half_mms(V::Additive, C::Counts)
+function alloc_half_mms(V::Additive, C::Counts; α=0.5)
     R = order(V, C)
 
-    # Normalize and allocate items worth 0.5 or more.
-    R′ = reduce(valuations(R), constraints(R), 0.5)
+    # Normalize and allocate items worth α or more.
+    R′ = reduce(valuations(R), constraints(R), α)
 
     R = chain(R, R′)
 
@@ -36,7 +41,7 @@ function alloc_half_mms(V::Additive, C::Counts)
         # Convert lower value items to higher value items
         categories = Iterators.Stateful(C)
         c, converted = popfirst!(categories), 0
-        while all(i -> value(V, i, B) < 0.5, N)
+        while all(i -> value(V, i, B) < α, N)
             if converted == floor_n(c, n)
                 isempty(categories) && break
 
@@ -53,7 +58,12 @@ function alloc_half_mms(V::Additive, C::Counts)
 
         # Add higher value items
         categories = Iterators.Stateful(C)
-        while all((i) -> value(V, i, B) < 0.5, N)
+        while all((i) -> value(V, i, B) < α, N)
+            # If there are no more categories, the supplied α does not work
+            if isempty(categories)
+                return (alloc=nothing, fail=true)
+            end
+
             c = popfirst!(categories)
 
             if length(c) % n > 0
@@ -61,7 +71,7 @@ function alloc_half_mms(V::Additive, C::Counts)
             end
         end
 
-        R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ 0.5, N), B)
+        R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ α, N), B)
         R = chain(R, R′)
         V, C = valuations(R), constraints(R)
         N, n = agents(V), na(V)
@@ -69,14 +79,21 @@ function alloc_half_mms(V::Additive, C::Counts)
 
     # Use an empty allocation if there are no more agents remaining
     if n == 0
-        A = Allocation(0, 0)
+        A = Allocation()
     else
-        A = Allocation(1, ni(V))
+        # If there is not enough value remaining for the last agent, the
+        # supplied α does not work
+        if value(V, 1, items(V)) < α
+            return (alloc=nothing, fail=true)
+        end
+
+        A = Allocation(V)
         give!(A, 1, items(V))
     end
 
     # Create an allocation in the original instance
-    return transform(R, A)
+    return (alloc=transform(R, A), fail=false)
+
 end
 
 
@@ -470,6 +487,215 @@ function alloc_bkv18_2(V; randpri=true, complete=false)
 
 end
 
+
 # Rather than BKV18(2) with HPPS20(1) for tie-breaking, one can view the
 # function as HPPS20(1) with BKV18(2) for finding the initial allocation.
 const alloc_hpps20_1 = alloc_bkv18_2
+
+
+"""
+    alloc_ghss18_4(V::Submodular, MMSs)
+
+The fourth algorithm (**Algorithm 4**) described by Ghodsi et al. in the 2018
+paper [Fair allocation of Indivisible Goods: Improvements and
+Generalizations](https://arxiv.org/abs/1704.00222). The algorithm finds a
+1/3-approximate MMS allocation for a given submodular instance and corresponding
+maximin shares for the agents (`MMSs[i]` should be the MMS of agent `i`). If the
+supplied maximin shares, are higher than the actual maximin shares, the method
+may fail. In that case, this will be indicated in the result, where `res.fail`
+will be set to true and `res.agent` will be set to the agent last considered
+when the method failed to improve. If the maximin shares are unknown, use
+`alloc_ghss18_4b`.
+"""
+function alloc_ghss18_4(V::Submodular, MMSs)
+
+    @assert na(V) == length(MMSs) "There must be one MMS per agent"
+
+    # Scale valuations so that each agent's MMS is 1
+    Vo = V
+    V = Submodular([B -> (value(Vo, i, B) / MMSs[i]) for i in agents(Vo)], ni(Vo))
+
+    # Allocate all items worth at least 1/3
+    R = reduce(V, 1/3)
+    V = valuations(R)
+
+    A = Allocation(V)
+
+    # In case all agents have received an item worth at least 1/3
+    if na(V) == 0
+        A = transform(R, A)
+
+        # The algorithm does not specify what to do in this situation. We
+        # therefore simply allocate the goods randomly to the agents.
+        fill_random!(A)
+
+        return (alloc=A, fail=false, agent=0)
+    end
+
+    # Create an arbitrary allocation with the remaining items by for each item
+    # allocating it to a random agent
+    fill_random!(A)
+
+    N, M = agents(V), items(V)
+
+    # All valuations from now on will be wrapped by the ceiling function for 2/3
+    V′ = Submodular([B -> min(2/3, value(V, i, B)) for i in N], ni(V))
+
+    # Continue until all agents have a bundle valued at least 1/3
+    while any(i -> value(V′, i, bundle(A, i)) < 1/3, N)
+        # Want to improve the bundle of the worst of agent
+        i = argmin([value(V′, i, bundle(A, i)) for i in N])
+
+        found = false
+        for g in M
+            j = owner(A, g)
+            i == j && continue
+
+            Bᵢ, Bⱼ = bundle(A, i), bundle(A, j)
+
+            # Only the contribution of agents `i` and `j` to `ex(A)` (the
+            # function defined by Ghodsi et al.) will change. Thus, we do not
+            # need to compute the entire value and can simply check the
+            # difference in the contributions of agents `i` and `j` before and
+            # after moving `g`.
+            v = value(V′, i, Bᵢ) + value(V′, j, Bⱼ)
+            v′ = value(V′, i, Bᵢ ∪ g) + value(V′, j, symdiff(Bⱼ, g))
+
+            # If the change in total value is more than 1/3m when moving g from
+            # i to j, perform the move.
+            if v′ ≥ v + 1/(3*ni(V))
+                found = true
+                deny!(A, j, g)
+                give!(A, i, g)
+                break
+            end
+        end
+
+        # If no sufficently large improvement can be made, then the MMS values
+        # are incorrect (too large)
+        if !found
+            return (alloc=nothing, fail=true, agent=item(R, i))
+        end
+    end
+
+    # Convert the allocation to one for the original instance
+    return (alloc=transform(R, A), fail=false, agent=0)
+
+end
+
+
+"""
+    alloc_ghss18_4b(V::Submodular; a=3, x_warn=true)
+
+A variation on the fourth algorithm (**Algorithm 4**) described by Ghodsi et al.
+in the 2018 paper [Fair allocation of Indivisible Goods: Improvements and
+Generalizations](https://arxiv.org/abs/1704.00222). The algorithm finds a
+1/3-approximate MMS allocation for a given submodular instance. The method
+starts by overestimating the MMS of each agent and slowly decreasing the MMS of
+specific agents until `alloc_ghss18_4` returns an allocation.
+
+The amount that the MMS of an agent should be reduced by in each iteration is
+not specified by Ghodsi et al. One can show that if the factor is `1/(1 + 1/x)`,
+where `x ≥ 3n - 1`, then the algorithm will successfully find a 1/3-approximate
+MMS allocation. One way to show this, is to modify Lemma 4.6 in their paper to
+assume that each of the bundles `Sᵢ` is valued at least `1/(1 + 1/x)`. Using
+this modified version of Lemma 4.6, one can modify the proof of Theorem 4.7 to
+show that as long as `x ≥ 3n - 1`, the change in expectance from moving an item
+is at least `1/(3m)`. The value of `x` used in this implementation is `x = an`,
+where the keyword argument `a` is set to `3` by default (i.e., `x = 3n`). If `a`
+is set so that `x < 3n - 1` a warning will be given. The warning can be turned
+off by setting `x_warn` to `false`.
+"""
+function alloc_ghss18_4b(V::Submodular; a=3, x_warn=true)
+
+    if x_warn && a * na(V) < 3 * na(V) - 1
+        @warn("The value of `a` may be too small")
+    end
+
+    MMSs = Vector{Float64}([value(V, i, items(V)) for i in agents(V)])
+
+    res = alloc_ghss18_4(V, MMSs)
+    while res.fail
+        MMSs[res.agent] /= (1 + 1/(a * na(V)))
+        res = alloc_ghss18_4(V, MMSs)
+    end
+
+    return (alloc=res.alloc,)
+
+end
+
+
+"""
+    alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
+
+The 1/3-approximate MMS-allocation under cardinality constraints algorithm
+(Section 5) described by Biswas and Barman in their 2018 paper [Fair Division
+Under Cardinality Constraints] (https://doi.org/10.24963/ijcai.2018/13). Finds a
+1/3-approximate MMS allocation for an instance of the fair allocation problem
+under cardinality constraints by converting the additive instance under
+cardinality constraints to a submodular instance without cardinality
+constraints. The allocation is then found by using the method of Ghodsi et al.
+(`alloc_ghhs18_4b`), with possible reallocation of items to satisfy the
+constraints. Both keyword arguments, `a` and `ghss18_4b_warn`, are passed
+directly to `alloc_ghhs18_4b` as respectively the keyword arguments `a` and
+`x_warn`. See [`alloc_ghhs18_4b`](@ref) for documentation on how to use them.
+"""
+function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
+
+    # The submodular valuation function construction for V and C
+    function submodular_valuation(i, B)
+        total = 0
+
+        for c in C
+            # Extract the overlap between B and the category. We do not care
+            # about which items overlap, only their value.
+            overlap = [value(V, i, g) for g in c.members ∩ B]
+
+            # An agent cannot get value from more items than the threshold of
+            # the given category.
+            n_items = min(threshold(c), length(overlap))
+
+            # Give the agent the `n_items` most valuable items in the overlap.
+            total += sum(partialsort!(overlap, 1:n_items, rev=true))
+        end
+
+        return total
+    end
+
+    N = agents(V)
+
+    # Create a submodular instance and use the method of Ghodsi et al.
+    V′ = Submodular([B -> submodular_valuation(i, B) for i in N], ni(V))
+    res = alloc_ghss18_4b(V′, a=a, x_warn=ghss18_4b_warn)
+    A = res.alloc
+
+    # Easy way to find overlap between agent's bundle and a category
+    overlap(i, c) = bundle(A, i) ∩ c.members
+
+    # It is possible that the 1/3-approximate MMS allocation produced by
+    # `alloc_ghss18_4b` does not adhere to the cardinality constraints. If this
+    # is the case, then we for each non-adhering bundle, give away the
+    # corresponding agent's least-preferred items in the bundle from any
+    # category for which the bundle breaks the category's threshold. This does
+    # not result in a decrease in the agent's perceived valuation of their
+    # bundle based on the submodular valuations.
+    for i in N, c in C
+        B = overlap(i, c)
+        # If there are more items than allowed
+        while length(B) > threshold(c)
+            # Give away the item in c that `i` prefers the least
+            g = minimum(g -> (value(V, i, g), g), B)[2]
+
+            # Give the item away to any agent that is allowed more items from
+            # the category
+            i′ = findfirst(i′ -> length(overlap(i′, c)) < threshold(c), N)
+
+            deny!(A, i, g)
+            give!(A, i′, g)
+            delete!(B, g)
+        end
+    end
+
+    return (alloc=A,)
+
+end
