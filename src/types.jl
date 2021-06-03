@@ -10,7 +10,7 @@ using DataStructures
 """
     na(X)
 
-The number of agents represented by (e.g., valuation or allocation) `X`.
+The number of agents represented by (e.g., profile or allocation) `X`.
 """
 function na end
 
@@ -18,7 +18,7 @@ function na end
 """
     agents(X)
 
-Returns the set of agents associated with (e.g., valuation or allocation)
+Returns the set of agents associated with (e.g., profile or allocation)
 `X`), as an iterable of `Int`s.
 """
 agents(X) = 1:na(X)
@@ -27,15 +27,15 @@ agents(X) = 1:na(X)
 """
     ni(X)
 
-The number of items represented by (e.g., valuation or allocation) `X`.
+The number of items represented by (e.g., profile or allocation) `X`.
 """
 function ni end
 
 
 """
-    items(V::Valuation)
+    items(X)
 
-Returns the set of items associated with (e.g., valuation or allocation) `X`,
+Returns the set of items associated with (e.g., profile or allocation) `X`,
 as an iterable of `Int`s.
 """
 items(X) = 1:ni(X)
@@ -274,78 +274,78 @@ function fill_random!(A)
 end
 
 
-## Valuations ################################################################
+## Valuation profiles ######################################################
 
 
 """
-    abstract struct Valuation <: Any
+    abstract struct Profile <: Any
 
-An abstract type representing a valuation oracle. Which functions are used to
+An abstract type representing an valuation profile. Which functions are used to
 query it depends on the kind of valuation functions it represents. Additive
-valuations act on individual objects, and simply sum those values over a
-bundle, but oracles with quite different kinds of queries are possible for
-valuations with other properties (see, e.g., [Fair Allocation of Indivisible
-Goods: Improvements and
+valuations act on individual objects, and simply sum those values over a bundle,
+but profiles with quite different kinds of queries are possible for valuations
+with other properties (see, e.g., [Fair Allocation of Indivisible Goods:
+Improvements and
 Generalizations](https://dl.acm.org/doi/10.1145/3219166.3219238) by Ghodsi et
 al., 2018).
 """
-abstract type Valuation end
+abstract type Profile end
 
 
 """
-    Allocation(V::Valuation)
+    Allocation(V::Profile)
 
 Construct an empty allocation with a number of agents and items equal to that of
-the instance `V`.
+the instance (i.e., profile) `V`.
 """
-Allocation(V::Valuation) = Allocation(na(V), ni(V))
+Allocation(V::Profile) = Allocation(na(V), ni(V))
 
 
 """
-    value(V::Valuation, i, S)
-    value(V::Valuation, i, g::Int)
+    value(V::Profile, i, S)
+    value(V::Profile, i, g::Int)
 
-The value agent `i` places on bundle `S`, according to the oracle `V`. The
-second form is a shortcut for `value(V, i, [g])`, which will generally be more
-efficient. Note that the value of `S` may *not* in general be the sum of the
-values of its items; that property is unique to `Additive` valuations.
+The value agent `i` places on bundle `S`, according to the profile `V`. The
+second form is a shortcut for `value(V, i, [g])`; the shortcut will generally be
+more efficient. Note that the value of `S` may *not* in general be the sum of
+the values of its items; that property is unique to `Additive` profiles.
 """
 function value end
 
 
 """
-    value(V::Valuation, i, A::Allocation)
+    value(V::Profile, i, A::Allocation)
 
-The value agent `i` receives in allocation `A`, under the valuation `V`.
+The value agent `i` receives in allocation `A`, under the profile `V`.
 """
-value(V::Valuation, i, A::Allocation) = bundle_value(V, i, A)
+value(V::Profile, i, A::Allocation) = bundle_value(V, i, A)
 
 # Use for disambiguation definitions for subtypes:
 bundle_value(V, i, A) = value(V, i, bundle(A, i))
 
 
 """
-    value_1(V::Valuation, i, S)
+    value_1(V::Profile, i, S)
 
 The value agent `i` places on bundle `S`, *up to one item*, that is, the
 smallest value `i` can place on bundle `S` after removing (at most) one item,
-according to the oracle `V`.
+according to the profile `V`.
 """
 function value_1 end
 
 
 """
-    value_x(V::Valuation, i, S)
+    value_x(V::Profile, i, S)
 
 The value agent `i` places on bundle `S`, *up to any item*, that is, the
 largest value `i` can place on bundle `S` after removing one item (or no
-items, if the bundle is empty), according to the oracle `V`.
+items, if the bundle is empty), according to the profile `V`.
 """
 function value_x end
 
 
 """
-    isintegral(V::Valuation)
+    isintegral(V::Profile)
 
 Test whether every value provided by `V` is an integer.
 """
@@ -353,7 +353,7 @@ function isintegral end
 
 
 """
-    isnonnegative(V::Valuation)
+    isnonnegative(V::Profile)
 
 Test whether every value provided by `V` is nonnegative.
 """
@@ -361,26 +361,26 @@ function isnonnegative end
 
 
 """
-    matrix(V::Valuation)
+    matrix(V::Profile)
 
 Return a matrix `X` where `X[i, g]` is `value(V, i, g)`. May not be very useful
 in general (especially if calculating single-item values isn't efficient to
-begin with), but if such a matrix is available as part of the valuation
+begin with), but if such a matrix is available as part of the profile
 implementation (as with `Additive`), it may be returned directly.
 """
-matrix(V::Valuation) = [value(V, i, g) for i in agents(V), g in items(V)]
+matrix(V::Profile) = [value(V, i, g) for i in agents(V), g in items(V)]
 
 
 """
-    struct Additive{T <: AbstractMatrix} <: Valuation
+    struct Additive{T <: AbstractMatrix} <: Profile
 
-An additive valuation oracle, representing how each agent values all possible
+An additive valuation profile, representing how each agent values all possible
 bundles. Because of additivity, this is easily "lifted" from the values of
 individual items, by addition, with an empty bundle given a value of zero. By
-default, the valuation is constructed from a real matrix `X`, supplied to the
+default, the profile is constructed from a real matrix `X`, supplied to the
 default constructor, where `X[i, g]` is agent `i`'s value for item `g`.
 """
-struct Additive{T <: AbstractMatrix{<:Real}} <: Valuation
+struct Additive{T <: AbstractMatrix{<:Real}} <: Profile
     values::T
 end
 
@@ -388,18 +388,18 @@ end
 """
     Additive(n, m)
 
-Create an additive valuation for `n` agents and `m` items where all values are
+Create an additive profile for `n` agents and `m` items where all values are
 set to zero.
 """
 Additive(n, m) = Additive(zeros(n, m))
 
 
 """
-    Valuation(X::Matrix)
+    Profile(X::Matrix)
 
 Alias for `Additive(X)`.
 """
-Valuation(X::Matrix) = Additive(X)
+Profile(X::Matrix) = Additive(X)
 
 
 na(V::Additive) = size(V.values, 1)
@@ -429,7 +429,7 @@ isnonnegative(V::Additive) = all(V.values .>= zero(eltype(V.values)))
 """
     value(V::Additive, i, g::Int)
 
-The value of item `g`, according to agent `i`.
+The value of item `g`, according to agent `i` under valuation profile `V`.
 """
 value(V::Additive, i, g::Int) = V.values[i, g]
 
@@ -439,20 +439,17 @@ value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
 # The bundle value is "lifted" from item values by addition.
-# TODO When Julia 1.6 comes out, can use init keyword argument
 value(V::Additive, i, S) =
-    isempty(S) ? zero(eltype(V.values)) : sum(value(V, i, g) for g in S)
+    sum(value(V, i, g) for g in S; init=zero(eltype(V.values)))
 
 
 # For the additive case, we can just subtract the highest item value.
-# TODO When Julia 1.6 comes out, can use init keyword argument
 value_1(V::Additive, i, S) =
     value(V, i, S) -
-    (isempty(S) ? zero(eltype(V.values)) : maximum(value(V, i, g) for g in S))
+    maximum(value(V, i, g) for g in S; init=zero(eltype(V.values)))
 
 
 # For the additive case, we can just subtract the lowest item value.
-# TODO When Julia 1.6 comes out, can use init keyword argument
 value_x(V::Additive, i, S) =
     value(V, i, S) -
     (isempty(S) ? zero(eltype(V.values)) : minimum(value(V, i, g) for g in S))
@@ -461,7 +458,7 @@ value_x(V::Additive, i, S) =
 """
     value!(V::Additive, i, g::Int, v)
 
-Set the value of item `g`, according to agent `i`, to `v`.
+Set the value of item `g`, according to agent `i`, to `v` in profile `V`.
 """
 value!(V::Additive, i, g, v) = V.values[i, g] = v
 
@@ -475,7 +472,7 @@ matrix(V::Additive) = V.values
 
 
 """
-    normalize(V)
+    normalize(V::Additive)
 
 Scale the values of `V` such that ``v_i(M) = n`` for all agents ``i``.
 """
@@ -484,16 +481,16 @@ normalize(V::Additive) =
 
 
 """
-    struct Submodular <: Valuation
+    struct Submodular <: Profile
 
 A submodular valuation profile, representing how each agent values all possible
 bundles. The profile is constructed from a set of `n` submodular valuation
-functions, one per agent, as well as the number of items, `m`. The valuation
-functions should, when supplied with a set of items (a subset of `1:m`), return
-the value of that set of items to the given agent (i.e., acting as so-called
-*query oracles*).
+functions, one per agent, as well as the number of items, `m`. The profile
+functions should, when supplied with a `Set` of items (a subset of `1:m`),
+return the value of that set of items to the given agent (i.e., acting as
+so-called *query oracles*).
 """
-struct Submodular <: Valuation
+struct Submodular <: Profile
     oracles::Vector{Function}
     m::Int
 end
@@ -502,8 +499,10 @@ end
 na(V::Submodular) = length(V.oracles)
 ni(V::Submodular) = V.m
 
-value(V::Submodular, i, B) = V.oracles[i](Set(B))
+
+value(V::Submodular, i, S) = V.oracles[i](Set(S))
 value(V::Submodular, i, g::Int) = value(V, i, Set(g))
+
 
 ## Constraints ###############################################################
 
@@ -511,9 +510,10 @@ value(V::Submodular, i, g::Int) = value(V, i, Set(g))
 """
     abstract type Constraint <: Any
 
-Abstract supertype of various kinds of constraints. An allocation problem is
-assumed to consist of a `Valuation` object and at most one `Constraint`
-object, embodying any and all constraints placed on feasible solutions.
+Abstract supertype of various kinds of constraints. An instance of the
+allocation problem is assumed to consist of a `Profile` object and at most one
+`Constraint` object, embodying any and all constraints placed on feasible
+solutions.
 """
 abstract type Constraint end
 
@@ -658,28 +658,28 @@ graph(C::Conflicts) = C.graph
     mutable struct Reduction{S, T, U, V}
 
 A reduction from one instance of a fair allocation problem to another. Contains
-information about the valuations in the reduced instance, through an object of
+information about the profiles in the reduced instance, through an object of
 type `S`. There must exist functions `agents(s::S)` and `items(s::S)` that
-return an iterator of, respectively, the agents and items in the reduced
-instance. The reduction can also contain information about the constraints in
-the reduced instance, through an object of type `T`.
+return iterators of, respectively, the agents and items in the reduced instance.
+The reduction can also contain information about the constraints in the reduced
+instance, through an object of type `T`.
 
-In addition, the reduction contains two mappings, `λi` (of type `U`) and `λg`
-(of type `V`). Both types should be indexable (for `i ∈ agents(s)` and `g ∈
-items(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and item
-identifier in the original instance of, respectively, agent `i` and item `g` in
-the reduced instance.
+In addition, the reduction contains two mappings (vectors), `λi` (of type `I`)
+and `λg` (of type `G`). Both types should be indexable (for `i ∈ agents(s)` and
+`g ∈ items(s)`, respectively). `λi[i]` and `λg[g]` should return the agent and
+item identifier in the original instance of, respectively, agent `i` and item
+`g` in the reduced instance.
 
 The reduction also contains a function that can convert an allocation in the
 reduced instance to one in the original instance.
 
 The default constructor is `Reduction(V, C, λi, λg, transform::Function)`.
 """
-mutable struct Reduction{S, T, U, V}
+mutable struct Reduction{S, T, I, G}
     V::S
     C::T
-    λi::U
-    λg::V
+    λi::I
+    λg::G
     transform::Function
 end
 
@@ -696,7 +696,7 @@ Reduction(V, λi, λg, transform) = Reduction(V, nothing, λi, λg, transform)
     Reduction(V, C)
 
 A simplified constructor for when either no changes have been performed or
-changes only concern the valuations and/or constraints.
+changes only concern the profiles and/or constraints.
 """
 Reduction(V, C) = Reduction(V, C, agents(V), items(V), identity)
 
@@ -705,25 +705,25 @@ Reduction(V, C) = Reduction(V, C, agents(V), items(V), identity)
     Reduction(V)
 
 A simplified constructor for when either no changes have been performed or
-changes only concern the valuations.
+changes only concern the profiles.
 """
 Reduction(V) = Reduction(V, nothing)
 
 
 """
-    valuation(R::Reduction)
+    profile(R::Reduction)
 
-Returns the valuations in the reduced instance.
+Returns the valuation profile for the reduced instance.
 """
-valuations(R::Reduction) = R.V
+profile(R::Reduction) = R.V
 
 
 """
-    constraints(R::Reduction)
+    constraint(R::Reduction)
 
-Returns the constraints in the reduced instance
+Returns the constraint object for the reduced instance
 """
-constraints(R::Reduction) = R.C
+constraint(R::Reduction) = R.C
 
 
 """

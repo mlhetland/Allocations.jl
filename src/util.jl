@@ -34,4 +34,4 @@ function bipartite_matching(X)
 end
 
 
-bipartite_matching(X::Valuation) = bipartite_matching(matrix(X))
+bipartite_matching(X::Profile) = bipartite_matching(matrix(X))

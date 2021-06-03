@@ -54,8 +54,8 @@ end
 """
     check_ef(V, A)
 
-Check whether the allocation `A` is *envy-free* for the valuation `V`, i.e.,
-if no agent strictly prefers another agent's bundle.
+Check whether the allocation `A` is *envy-free* for the profile `V`, i.e., if no
+agent strictly prefers another agent's bundle.
 """
 check_ef(V, A) = check_ef_(V, A, value)
 
@@ -63,9 +63,9 @@ check_ef(V, A) = check_ef_(V, A, value)
 """
     check_ef1(V, A)
 
-Check whether the allocation `A` is *envy-free up to one item* for the
-valuation `V`, i.e., if no agent strictly prefers another agent's bundle,
-given that an appropriate (e.g., the most valuable) item is removed.
+Check whether the allocation `A` is *envy-free up to one item* for the profile
+`V`, i.e., if no agent strictly prefers another agent's bundle, given that an
+appropriate (e.g., the most valuable) item is removed.
 """
 check_ef1(V, A) = check_ef_(V, A, value_1)
 
@@ -73,9 +73,9 @@ check_ef1(V, A) = check_ef_(V, A, value_1)
 """
     check_efx(V, A)
 
-Check whether the allocation `A` is *envy-free up to any item* for the
-valuation `V`, i.e., if no agent strictly prefers another agent's bundle,
-given that an appropriate (e.g., the least valuable) item is removed.
+Check whether the allocation `A` is *envy-free up to any item* for the profile
+`V`, i.e., if no agent strictly prefers another agent's bundle, given that an
+appropriate (e.g., the least valuable) item is removed.
 """
 check_efx(V, A) = check_ef_(V, A, value_x)
 
@@ -83,8 +83,7 @@ check_efx(V, A) = check_ef_(V, A, value_x)
 """
     check(V, A, C)
 
-Check that the allocation `A` obeys the `Constraint` `C`, given the valuation
-`V`.
+Check that the allocation `A` obeys the `Constraint` `C`, given the profile `V`.
 """
 function check end
 

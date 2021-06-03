@@ -5,16 +5,17 @@ Algorithms for fair allocation of indivisible items.
 
 # Basic use
 
-To specify an allocation problem instance, create a `Valuation`:
+To specify an allocation problem instance, create a valuation profile:
 
-    julia> V = Valuation([1 2 3; 2 3 1])
+    julia> V = Profile([1 2 3; 2 3 1])
     Additive{Array{Int64,2}} with 2 agents and 3 items:
      1  2  3
      2  3  1
 
-`Valuation` is an abstract class, and `Valuation(X::Matrix)` is an alias for
-`Additive(X)`. Once you have a valuation, you can use an allocation function
-(ones `alloc_...`), e.g., for finding a maximum Nash welfare (MNW) allocation:
+`Profile` is an abstract class, and `Profile(X::Matrix)` is an alias for
+`Additive(X)`. Once you have a valuation profile, you can use an allocation
+function (ones called `alloc_...`), e.g., for finding a maximum Nash welfare
+(MNW) allocation:
 
     julia> res = alloc_mnw(V);
 
@@ -25,7 +26,7 @@ To specify an allocation problem instance, create a `Valuation`:
     the scenes. From then on, in the same REPL session, there will be much less
     overhead.
 
-These functions take a `Valuation` as input and return a named tuple with the
+These functions take a `Profile` as input and return a named tuple with the
 field `alloc` referring to an `Allocation`:
 
     julia> A = res.alloc
@@ -42,21 +43,21 @@ The bundles of each agent is available through the `bundle` function:
 
 !!! note
 
-    Bundles should not be modified directly, as the `Allocation` also
-    maintains an inverse mapping, from items to agents. Rather, use the
-    `give!` and `deny!` functions.
+    Bundles should not be modified directly, as the `Allocation` also maintains
+    an inverse mapping, from items to agents. Rather, use the `give!` and
+    `deny!` functions.
 
-Some allocation functions may produce other results as well, such as
-properties of the allocation that are naturally computed as part of the
-allocation process. For the MNW case, the objective value (the Nash welfare,
-which is being maximinzed) is available as `mnw`:
+Some allocation functions may produce other results as well, such as properties
+of the allocation that are naturally computed as part of the allocation process.
+For the MNW case, the objective value (the Nash welfare, which is being
+maximinzed) is available as `mnw`:
 
     julia> res.mnw
     15.0
 
-The allocation functions also permit a matrix argument as a shortcut,
-implicitly creating an `Additive`. For example, you can find a maximin share
-(MMS) allocation as follows:
+The allocation functions also permit a matrix argument as a shortcut, implicitly
+creating an `Additive`. For example, you can find a maximin share (MMS)
+allocation as follows:
 
     julia> alloc_mms([1 1 2 3; 2 1 2 3]).alloc
     Allocation with 2 agents and 4 items:

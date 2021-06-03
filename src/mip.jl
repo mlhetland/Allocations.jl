@@ -6,7 +6,7 @@
 # allocation (as an n-by-m matrix) is kept in alloc_var. The res field should be
 # a named tuple of any extra data to be splatted in at the end of the result.
 mutable struct MIPContext{V <: Additive, M, A, S}
-    valuation::V
+    profile::V
     alloc_var::A
     model::M
     solver::S
@@ -19,10 +19,10 @@ MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
 # Internal MIP-building functions
 
 # The init_mip and solve_mip functions are used to set up a MIP based on a
-# valuation, and then to solve the MIP and produce an Allocation. After this,
-# a final stage (such as mnw_result) should be used, to wrap the allocation
-# and any other result variables (such as the objective value) in a named
-# tuple.
+# valuation profile, and then to solve the MIP and produce an Allocation. After
+# this, a final stage (such as mnw_result) should be used, to wrap the
+# allocation and any other result variables (such as the objective value) in a
+# named tuple.
 #
 # The "enforce" functions add constraints to the MIP, while the "achieve"
 # functions also modify the objective function. At most one "achieve" function
@@ -30,8 +30,8 @@ MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
 # overwrite the objective of the first one.
 
 
-# Set up a MIPContext with based on a valuation. Initializes a JuMP model with
-# constraints ensuring a valid allocation.
+# Set up a MIPContext with based on an additive valuation profile. Initializes a
+# JuMP model with constraints ensuring a valid allocation.
 function init_mip(V::Additive, solver)
 
     model = Model(solver)
@@ -51,7 +51,7 @@ function init_mip(V::Additive, solver)
 end
 
 
-# Shortcut, so you can use a matrix instead of an Additive valuation,
+# Shortcut, so you can use a matrix instead of an Additive valuation profile,
 # including in the alloc_... functions that rely on init_mip.
 init_mip(V::Matrix, solver) = init_mip(Additive(V), solver)
 
@@ -65,7 +65,7 @@ function solve_mip(ctx; ϵ=1e-5, check=check_partition)
 
     @assert termination_status(ctx.model) in conf.MIP_SUCCESS
 
-    V = ctx.valuation
+    V = ctx.profile
     ctx.alloc = Allocation(na(V), ni(V))
 
     for i in agents(V), g in items(V)
@@ -89,7 +89,7 @@ end
 # et al. (https://doi.org/10.1145/3355902).
 achieve_mnw(mnw_warn) = function(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     @assert isintegral(V)
     @assert isnonnegative(V)
@@ -139,7 +139,7 @@ end
 # egalitarian/maximin allocation.
 achieve_mm(cutoff=nothing) = function(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     N, M = agents(V), items(V)
 
@@ -163,7 +163,7 @@ end
 # function (cf., Lesca & Perny, 2010)
 achieve_ggi(wt) = function(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     N, n, M = agents(V), na(V), items(V)
 
@@ -195,7 +195,7 @@ enforce(C::Nothing) = identity
 # Enforce cardinality constraints on the JuMP model.
 enforce(C::Counts) = function(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     for S in C, i in agents(V)
         @constraint(model, sum(A[i, g] for g in S) <= S.threshold)
@@ -209,7 +209,7 @@ end
 # Enforce item conflict constraints on the JuMP model.
 enforce(C::Conflicts) = function(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     G = graph(C)
 
@@ -230,7 +230,7 @@ end
 # Enforce envy-freeness up to a single object (EF1) on the JuMP model.
 function enforce_ef1(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     N, M = agents(V), items(V)
 
@@ -272,7 +272,7 @@ end
 # Enforce envy-freeness up to any object (EFX) on the JuMP model.
 function enforce_efx(ctx)
 
-    V, A, model = ctx.valuation, ctx.alloc_var, ctx.model
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
     N, M = agents(V), items(V)
 
@@ -320,15 +320,15 @@ alloc_result(ctx) = (alloc=ctx.alloc, model=ctx.model, ctx.res...)
     alloc_ef1(V, C; solver=conf.MIP_SOLVER)
 
 Create an `Allocation` that is envy-free up to one item (EF1), based on the
-valuation `V`, possibly subject to the constraints given by the `Constraint`
-object `C`. The solution is found using a straightforward mixed-integer program,
-and is most suitable for constraints where no specialized algorithm exists. For
-example, without constraints, a straightforward round robin picking sequence
-yields EF1, and a similar strategy works for cardinality constraints. (It is
-still possible to use this function without constraints, by explicitly supplying
-`nothing` for the constraint argument `C`.) The return value is a named tuple
-with the fields `alloc` (the `Allocation`) and `model` (the JuMP model used in
-the computation).
+valuation profile `V`, possibly subject to the constraints given by the
+`Constraint` object `C`. The solution is found using a straightforward
+mixed-integer program, and is most suitable for constraints where no specialized
+algorithm exists. For example, without constraints, a straightforward round
+robin picking sequence yields EF1, and a similar strategy works for cardinality
+constraints. (It is still possible to use this function without constraints, by
+explicitly supplying `nothing` for the constraint argument `C`.) The return
+value is a named tuple with the fields `alloc` (the `Allocation`) and `model`
+(the JuMP model used in the computation).
 
 Note that for some constraints, there may not *be* an EF1 allocation, in which
 case the function will fail with an exception.
@@ -348,10 +348,10 @@ end
     alloc_efx(V[, C]; solver=conf.MIP_SOLVER)
 
 Create an `Allocation` that is envy-free up to any item (EFX), based on the
-valuation `V`, possibly subject to the constraints given by the `Constraint`
-object `C`. The solution is found using a straightforward mixed-integer program.
-The return value is a named tuple with the fields `alloc` (the `Allocation`) and
-`model` (the JuMP model used in the computation).
+valuation profile `V`, possibly subject to the constraints given by the
+`Constraint` object `C`. The solution is found using a straightforward
+mixed-integer program. The return value is a named tuple with the fields `alloc`
+(the `Allocation`) and `model` (the JuMP model used in the computation).
 
 Note that while some constraints may prevent an exact EFX allocation, it is
 currently (Mar 2021) an open question whether EFX always exists in the
@@ -373,10 +373,10 @@ end
 # zero) at the end of the pipeline. Strictly speaking, we needn't include the
 # mnw field here, as it's a separate calculations; however, it's convenient if
 # you supply a matrix as the argument for alloc_mnw function, since we have
-# access to the valuation here. (Also, the cost of nash_welfare will generally
-# be very low, compared to the actual MIP solving.)
+# access to the valuation profile here. (Also, the cost of nash_welfare will
+# generally be very low, compared to the actual MIP solving.)
 function mnw_result(ctx)
-    V, A = ctx.valuation, ctx.alloc
+    V, A = ctx.profile, ctx.alloc
     return (alloc=A, model=ctx.model, mnw=nash_welfare(V, A), ctx.res...)
 end
 
@@ -385,14 +385,14 @@ end
     alloc_mnw(V[, C]; mnw_warn=false, solver=conf.MIP_SOLVER)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
-valuation `V`, possibly subject to the constraints given by the `Constraint`
-object `C`. The solution is found using the approach of Caragiannis et al. in
-their 2019 paper [The Unreasonable Fairness of Maximum Nash
+valuation profile `V`, possibly subject to the constraints given by the
+`Constraint` object `C`. The solution is found using the approach of Caragiannis
+et al. in their 2019 paper [The Unreasonable Fairness of Maximum Nash
 Welfare](https://doi.org/10.1145/3355902), with two minor modifications:
 
-1. Rather than hard-coding a maximum valuation (arising from the assumption
-   that the values of each agent sum to 1000), this maximum is extracted from
-   `V`; and
+1. Rather than hard-coding a maximum valuation (arising from the assumption that
+   the values of each agent sum to 1000), this maximum is extracted from `V`;
+   and
 
 2. Extra constraints are permitted (through the object `C`), possibly lowering
    the attainable MNW.
@@ -511,10 +511,10 @@ end
     mms_alpha(V, A, mmss)
 
 Utility function to find the fraction of the maximin share guarantee attained by
-the allocation `A`, under the valuation `V`, where `mmss[i]` is the MMS of agent
-`i`. This makes it possible, for example, to use the `mmss` field from the
-result of `alloc_mms` to find the MMS approximation provided by an allocation
-constructed by other means. For example:
+the allocation `A`, under the valuation profile `V`, where `mmss[i]` is the MMS
+of agent `i`. This makes it possible, for example, to use the `mmss` field from
+the result of `alloc_mms` to find the MMS approximation provided by an
+allocation constructed by other means. For example:
 
     mmss = alloc_mms(V).mmss
     A = alloc_rand(V).alloc
@@ -622,12 +622,13 @@ named tuple with the fields `alloc` (the `Allocation` that has been produced)
 and `model` (the JuMP model used in the computation).
 
 In the original inequality measures, the mean agent utility is included as a
-normalizing term, which is harmless for the case of identical valuations (and
-when looking at, say, the distribution of incomes), but when valuations differ,
-this mean will vary with the allocations. As pointed out by Lesca and Perny,
-such a measure is not monotone with Pareto dominance -- the optimization will
-tend to drive the mean utility *down*. Therefore only the term measuring
-(in)equality (i.e., the ordered weighted sum of agent utilities) is used.
+normalizing term, which is harmless for the case of identical valuations
+functions (and when looking at, say, the distribution of incomes), but when
+valuations differ, this mean will vary with the allocations. As pointed out by
+Lesca and Perny, such a measure is not monotone with Pareto dominance -- the
+optimization will tend to drive the mean utility *down*. Therefore only the term
+measuring (in)equality (i.e., the ordered weighted sum of agent utilities) is
+used.
 """
 function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
 
