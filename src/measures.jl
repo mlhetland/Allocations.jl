@@ -4,7 +4,7 @@
 """
     utility(V, A)
 
-Compute the utilitarian welfare of the allocation `A`, given the valuation `V`,
+Compute the utilitarian welfare of the allocation `A`, given the profile `V`,
 i.e., the sum of the individual agent utilities (i.e., the bundle values)
 resulting from `A`.
 """
@@ -14,12 +14,12 @@ utility(V, A) = sum(value(V, i, A) for i in agents(V))
 """
     nash_welfare(V, A; nonzero=true)
 
-Compute the Nash welfare of the allocation `A`, given the valuation `V`, i.e.,
-the product of the individual agent utilities resulting from `A`. The
-`nonzero` keyword indicates that agents with a utility of zero are left out.
-If no agents with nonzero utility exist, the result is zero. To avoid overflow
-with large utilities, the product is performed using floating-point arithmetic,
-even if the utilities are integral.
+Compute the Nash welfare of the allocation `A`, given the profile `V`, i.e., the
+product of the individual agent utilities resulting from `A`. The `nonzero`
+keyword indicates that agents with a utility of zero are left out. If no agents
+with nonzero utility exist, the result is zero. To avoid overflow with large
+utilities, the product is performed using floating-point arithmetic, even if the
+utilities are integral.
 """
 function nash_welfare(V, A; nonzero=true)
     x = Float64[value(V, i, A) for i in agents(V)]

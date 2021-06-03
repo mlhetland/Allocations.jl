@@ -111,7 +111,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, α::Real)
 
             R = reduce(V, C, i, bundle)
 
-            V, C = valuations(R), constraints(R)
+            V, C = profile(R), constraint(R)
             # Recursive application, as the removed items may cause items worth
             # less than α to be worth α or more after a new normalization.
             R′ = reduce(V, C, α)
@@ -127,18 +127,18 @@ end
 
 
 """
-    reduce(V::Valuation, α::Real)
+    reduce(V::Profile, α::Real)
 
 Produce a reduced instance by giving an item to any agent that values it at `α`
 or more. This reduction is performed repeatedly, until no such item exists.
 """
-function reduce(V::Valuation, α::Real)
+function reduce(V::Profile, α::Real)
     N, M = agents(V), items(V)
 
     for i in N, g in M
         if value(V, i, g) ≥ α
             R = reduce(V, i, Set(g))
-            V = valuations(R)
+            V = profile(R)
 
             # Recursive application on the new instance
             R′ = reduce(V, α)

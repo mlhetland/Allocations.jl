@@ -27,11 +27,11 @@ function alloc_half_mms(V::Additive, C::Counts; α=0.5)
     R = order(V, C)
 
     # Normalize and allocate items worth α or more.
-    R′ = reduce(valuations(R), constraints(R), α)
+    R′ = reduce(profile(R), constraint(R), α)
 
     R = chain(R, R′)
 
-    V, C = valuations(R), constraints(R)
+    V, C = profile(R), constraint(R)
     N, n = agents(V), na(V)
 
     while n > 1
@@ -73,7 +73,7 @@ function alloc_half_mms(V::Additive, C::Counts; α=0.5)
 
         R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ α, N), B)
         R = chain(R, R′)
-        V, C = valuations(R), constraints(R)
+        V, C = profile(R), constraint(R)
         N, n = agents(V), na(V)
     end
 
@@ -101,9 +101,9 @@ end
     alloc_rand(V)
 
 A straightforward lottery that allocates the items randomly to the agents. For
-each item, its agent is selected uniformly at random. The valuation `V` is not
-used, other than to determine the number of agents and items. The return value
-is a named tuple with the field `alloc` (the `Allocation`).
+each item, its agent is selected uniformly at random. The valuation profile `V`
+is not used, other than to determine the number of agents and items. The return
+value is a named tuple with the field `alloc` (the `Allocation`).
 """
 alloc_rand(V) = alloc_rand(na(V), ni(V))
 
@@ -148,8 +148,8 @@ This final arbitrary reallocation is also performed randomly in this
 implementation, by going through the items in random order, allocating each to a
 randomly selected agent among those able to receive it.
 
-The valuation `V` is not used, other than to determine the number of agents and
-items.
+The valuation profile `V` is not used, other than to determine the number of
+agents and items.
 
 For this algorithm to function properly, the maximum degree of the conflict
 graph should be strictly less than the number of agents.
@@ -517,7 +517,7 @@ function alloc_ghss18_4(V::Submodular, MMSs)
 
     # Allocate all items worth at least 1/3
     R = reduce(V, 1/3)
-    V = valuations(R)
+    V = profile(R)
 
     A = Allocation(V)
 
@@ -677,8 +677,8 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
     # is the case, then we for each non-adhering bundle, give away the
     # corresponding agent's least-preferred items in the bundle from any
     # category for which the bundle breaks the category's threshold. This does
-    # not result in a decrease in the agent's perceived valuation of their
-    # bundle based on the submodular valuations.
+    # not result in a decrease in the agent's perceived value of its bundle
+    # based on the submodular valuations.
     for i in N, c in C
         B = overlap(i, c)
         # If there are more items than allowed

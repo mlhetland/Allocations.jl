@@ -69,14 +69,14 @@ function runtests()
 
     end
 
-    @testset "Valuations" begin
+    @testset "Profiles" begin
 
         let
 
             X = [1 2 3; 3 2 1]
 
             V = Additive(X)
-            V′ = Valuation(X)
+            V′ = Profile(X)
 
             @test V == V′
 
@@ -475,7 +475,7 @@ end
             n = rand(2:4)
             m = 3n
             # Identical valuations
-            V = Valuation(repeat(rand(1:5, 1, m), n))
+            V = Profile(repeat(rand(1:5, 1, m), n))
 
             res = alloc_bkv18_1(V)
             A = res.alloc
@@ -491,9 +491,9 @@ end
 
     @testset "BKV18(2)" begin
 
-        V = Valuation([1 1 0 1 0
-                       0 1 0 0 1
-                       1 1 1 0 1])
+        V = Profile([1 1 0 1 0
+                     0 1 0 0 1
+                     1 1 1 0 1])
 
         res = alloc_bkv18_2(V)
         A = res.alloc
@@ -502,35 +502,35 @@ end
         @test check_partition(A)
         @test res.mnw == alloc_mnw(V).mnw
 
-        V = Valuation([1 0; 1 0; 0 1])
+        V = Profile([1 0; 1 0; 0 1])
 
         res = alloc_bkv18_2(V)
         A = res.alloc
         @test res.mnw == nash_welfare(V, A) == 1
         @test nash_welfare(V, A, nonzero=false) == 0
 
-        @test alloc_bkv18_2(Valuation([0 0; 0 0])).mnw == 0
+        @test alloc_bkv18_2(Profile([0 0; 0 0])).mnw == 0
 
-        V = Valuation(ones(2, 10))
+        V = Profile(ones(2, 10))
         for _ = 1:10
             @test alloc_bkv18_2(V).mnw == 25
         end
 
         for _ = 1:10
-            V = Valuation(rand(Bool, rand(2:5), rand(5:15)))
+            V = Profile(rand(Bool, rand(2:5), rand(5:15)))
             @test alloc_bkv18_2(V).mnw == alloc_mnw(V).mnw
         end
 
         # Regression test
-        V = Valuation([0 0 1 0 1 1; 0 1 0 1 1 1; 0 1 0 1 0 0])
+        V = Profile([0 0 1 0 1 1; 0 1 0 1 1 1; 0 1 0 1 0 0])
         for _ = 1:10
             alloc_bkv18_2(V) # Should not throw an exception
         end
 
         # Even distribution of unvalued items:
-        V = Valuation([1 1 1 0 0 0 0 0 0
-                       0 0 0 0 0 0 0 0 0
-                       0 0 0 0 0 0 0 0 0])
+        V = Profile([1 1 1 0 0 0 0 0 0
+                     0 0 0 0 0 0 0 0 0
+                     0 0 0 0 0 0 0 0 0])
         A = alloc_bkv18_2(V).alloc
         for g = 4:9
             @test !owned(A, g)
