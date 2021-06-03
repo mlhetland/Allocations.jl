@@ -440,13 +440,13 @@ value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 # The bundle value is "lifted" from item values by addition.
 value(V::Additive, i, S) =
-    sum(value(V, i, g) for g in S; init=zero(eltype(V.values)))
+    isempty(S) ? zero(eltype(V.values)) : sum(value(V, i, g) for g in S)
 
 
 # For the additive case, we can just subtract the highest item value.
 value_1(V::Additive, i, S) =
     value(V, i, S) -
-    maximum(value(V, i, g) for g in S; init=zero(eltype(V.values)))
+    (isempty(S) ? zero(eltype(V.values)) : maximum(value(V, i, g) for g in S))
 
 
 # For the additive case, we can just subtract the lowest item value.
