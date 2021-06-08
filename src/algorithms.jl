@@ -574,7 +574,7 @@ function alloc_ghss18_4(V::Submodular, MMSs)
         # If no sufficently large improvement can be made, then the MMS values
         # are incorrect (too large)
         if !found
-            return (alloc=nothing, fail=true, agent=item(R, i))
+            return (alloc=nothing, fail=true, agent=agent(R, i))
         end
     end
 
