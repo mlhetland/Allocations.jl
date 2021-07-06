@@ -10,7 +10,7 @@ using Allocations: bipartite_matching
 # For Counts test:
 using Allocations: Category
 
-function runtests()
+function runtests(; slow_tests = true)
 
     seed!(4252170447285279131)
 
@@ -370,6 +370,7 @@ end
 
     end
 
+    slow_tests &&
     @testset "MMS" begin
 
         V = V₀
@@ -466,6 +467,7 @@ end
 
     end
 
+    slow_tests &&
     @testset "BKV18(1)" begin
 
         α = 1.061 # Approximation ratio, for geomean version of NW
@@ -593,6 +595,7 @@ end
         end
     end
 
+    slow_tests &&
     @testset "MMS approximation with card. constr." begin
 
         # A default test set for all algorithms

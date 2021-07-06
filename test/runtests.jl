@@ -1,3 +1,3 @@
 include("tests.jl")
 
-runtests()
+runtests(slow_tests = !("fast" in ARGS))
