@@ -288,13 +288,15 @@ end
 
     @testset "EF1 with conflicts" begin
 
-        n, m = 3, 9
-        nv, ne = m, 2m
+        nᵢ = 6
+        n, m = nᵢ, 2nᵢ
 
         V = Additive(rand(n, m))
 
-        # Random graph
-        C = Conflicts(SimpleGraph(nv, ne))
+        # Random graph whose components have at most n items, to ensure EF1 is
+        # possible.
+        G = blockdiag(SimpleGraph(nᵢ, nᵢ + 1), SimpleGraph(nᵢ, nᵢ + 1))
+        C = Conflicts(G)
 
         res = alloc_ef1(V, C)
 
