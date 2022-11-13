@@ -1,6 +1,6 @@
 import JuMP
 using Allocations
-using LightGraphs
+using Graphs
 using Random: seed!
 using Test
 
