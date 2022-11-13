@@ -67,7 +67,7 @@ allocation as follows:
 Several allocation functions use mixed-integer linear programming via
 [JuMP](https://jump.dev). Depending on the choice of MIP solver, solving even
 moderately-sized instances may take a significant amount of time. Choosing a
-different solver (from the default `Cbc.Optimizer`) may speed things up
+different solver (from the default `HiGHS.Optimizer`) may speed things up
 considerably. For example, with the appropriate license, one could use use
 [Gurobi](https://www.gurobi.com) as follows:
 
@@ -83,7 +83,7 @@ import JuMP
 using JuMP: Model, optimizer_with_attributes, objective_value, @variable,
             @objective, @constraint, fix, optimize!, termination_status, MOI
 using LightGraphs
-using Cbc
+using HiGHS
 using Random
 
 include("exports.jl")

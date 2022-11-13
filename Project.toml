@@ -4,8 +4,8 @@ authors = ["Magnus Lie Hetland <mlh@ntnu.no>"]
 version = "0.1.0"
 
 [deps]
-Cbc = "9961bab8-2fa3-5c5a-9d89-47fab24efd76"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LightGraphs = "093fc24a-ae57-5d10-9952-331d41423f4d"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
