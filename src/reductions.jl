@@ -171,7 +171,7 @@ allocated a bundle in the reduction is guaranteed to value their bundle at least
 α of their MMS guarantee. The agent-item pairs are either selected greedily or
 by finding a maximum matching between agents and such items.
 """
-function reduce(V::Additive, α::Float64; greedy::Bool=true)
+function reduce(V::Additive, α; greedy::Bool=true)
     if greedy
         function find_combo(V)
             i = findfirst(i -> value(V, i, 1) ≥ α, agents(V))
