@@ -1,13 +1,13 @@
 """
-    reduceutil(V::Profile, assignments::Pair{Int, Vector{Int}}...)
+    reduceutil(V::Profile, assignments...)
 
-Utility function that given valuations and a set of assignments of bundles to
-agents, creates a reduced instance, translation tables from the reduced instance
-and a function to convert an allocation in the reduced instance to one in the
-original instance -- including the given assignements. The function returns a
-`Reduction` object without any constraints.
+Utility function that given valuations and a collection of assignments of
+bundles to agents (`i => B`), creates a reduced instance, translation tables
+from the reduced instance and a function to convert an allocation in the reduced
+instance to one in the original instance -- including the given assignements.
+The function returns a `Reduction` object without any constraints.
 """
-function reduceutil(V::Profile, assignments::Pair{Int, Set{Int}}...)
+function reduceutil(V::Profile, assignments...)
     # Create translation tables
     λi = collect(agents(V))
     λg = collect(items(V))
@@ -54,21 +54,20 @@ prior to the reduction and calling the valuation function of the agent prior to
 the reduction.
 """
 function reducevaluation(V::Submodular, λi, λg)
-    Vf′ = [B -> value(V, i, Set(λg[g] for g in B)) for i in λi]
+    Vf′ = [B -> value(V, i, [λg[g] for g in B]) for i in λi]
     return Submodular(Vf′, length(λg))
 end
 
 
 """
-    reduce(V::Valuation, assignment::Pair{Int, Vector{Int}}...)
+    reduce(V::Valuation, assignment...)
 
 Reduce the instance given to a new instance where the involved agents and
 bundles in the assignments are removed. Returns new valuations and a function
 that turns an allocation in the reduced instance into one for the original
 instance, including giving the supplied agent the supplied bundle.
 """
-reduce(V::Profile, assignments::Pair{Int, Set{Int}}...) =
-    reduceutil(V, assignments...)
+reduce(V::Profile, assignments...) = reduceutil(V, assignments...)
 
 
 """
@@ -142,7 +141,7 @@ matrix.
 function reduce(V::Additive, F::Function...)
 
     if na(V) == 0 return V, (A) -> A end
-    if na(V) == 1 return reduce(V, 1 => Set(items(V))) end
+    if na(V) == 1 return reduce(V, 1 => items(V)) end
 
     V = normalize(V)
 
@@ -176,7 +175,7 @@ function reduce(V::Additive, α::Float64; greedy::Bool=true)
     if greedy
         function find_combo(V)
             i = findfirst(i -> value(V, i, 1) ≥ α, agents(V))
-            return i == nothing ? nothing : i => Set([1])
+            return i == nothing ? nothing : i => [1]
         end
 
         return reduce(V, find_combo)
@@ -189,7 +188,7 @@ function reduce(V::Additive, α::Float64; greedy::Bool=true)
     X = BitArray(value(V, i, g) ≥ α for i = agents(V), g = items(V))
     x = bipartite_matching(X)
 
-    allocations = [i => Set([g]) for (i, g) in x]
+    allocations = [i => [g] for (i, g) in x]
 
     if isempty(allocations) return Reduction(V) end
 
@@ -206,7 +205,7 @@ end
 
 
 """
-    reduce(V::Additive, C::Vector{OrderedCategory}, α)
+    reduce(V::Additive, C::Counts{OrderedCategory}, α)
 
 Reduce an ordered instance by normalizing the values and giving any agent that
 value an individual item greater than or equal to α the item and any low value
@@ -260,7 +259,7 @@ function reduce(V::Profile, α::Real)
 
     for i in N, g in M
         if value(V, i, g) ≥ α
-            R = reduce(V, i, Set(g))
+            R = reduce(V, i, [g])
             V = profile(R)
 
             # Recursive application on the new instance
