@@ -666,6 +666,22 @@ end
 
         end
 
+        @testset "2/3-MMS Garg, McGlaughlin and Taki (2018)" begin
+            V = V₀
+
+            A = alloc_gmt18(V)
+
+            @test A isa Allocation
+            #Test that all items are allocated properly
+            for g in items(V)
+                @test owner(A, g) isa Int
+            end
+
+            for i in agents(V)
+                @test value(V, i, bundle(A, i)) ≥ 2/3 * mms(V, i).mms
+            end
+        end
+
     end
 
 end

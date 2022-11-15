@@ -709,6 +709,13 @@ changes only concern the profiles.
 """
 Reduction(V) = Reduction(V, nothing)
 
+"""
+    Reduction(R::Reduction, C)
+
+A simplified constructor to create a copy of a reduction with constraints
+attached.
+"""
+Reduction(R::Reduction, C) = Reduction(R.V, C, R.λi, R.λg, R.transform)
 
 """
     profile(R::Reduction)

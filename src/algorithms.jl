@@ -699,3 +699,64 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
     return (alloc=A,)
 
 end
+
+
+"""
+    alloc_gmt18(V)
+The 2/3-approximate MMS allocation algorithm described by Garg, McGlaughlin and
+Taki in their 2018 paper [Approximating Maximin Share Allocations]
+(https://doi.org/10.4230/OASICS.SOSA.2019.20). The algorithm finds a
+2/3-approximate MMS allocation for an instance with additive valuations. The
+algorithm works by performing a set of reductions to simplify the instance,
+limiting the maximum value of a good and the number of high-valued goods. The
+algorithm then uses bag-filling to allocate the remaining goods to the remaining
+agents.
+"""
+function alloc_gmt18(V::Additive)
+
+    R = order(V)
+
+    # Allocate all items worth 2/3 or more using a maximum matching approach
+    R = chain(R, reduce(profile(R), 2/3, greedy=false))
+
+    # Finds an assignment of the two least valuable items, that are still valued
+    # at more than 1/3 each and there are more than n items that some agent
+    # values at 1/3 or more.
+    function findtwoitembundles(V)
+        N, n, M = agents(V), na(V), items(V)
+        j = findlast(g -> any(i -> value(V, i, g) ≥ 1/3, N), M)
+
+        if j ≤ n return nothing end
+
+        B = Set([j - 1, j])
+        return findfirst(i -> value(V, i, B) ≥ 2/3, N) => B
+    end
+
+    R = chain(R, reduce(profile(R), findtwoitembundles))
+    V = profile(R)
+
+    while na(V) > 1
+        N, M = agents(V), items(V)
+
+        # The highest-valued item in S_L, not already in B (i.e., not item 1)
+        j = max(2, findfirst(g -> all(i -> value(V, i, g) < 1/3, N), M))
+
+        # Either item 1 is in S_M or S_M is empty
+        B = [1]
+
+        # Perform bag filling with the items in S_L
+        while all(i -> value(V, i, B) < 2/3, N)
+            push!(B, j)
+            j += 1
+        end
+
+        R = chain(R, reduce(V, findfirst(i -> value(V, i, B) ≥ 2/3, N) => B))
+        V = profile(R)
+    end
+
+    A = Allocation(na(V), ni(V))
+    if na(V) == 1 give!(A, 1, items(V)) end
+
+    return transform(R, A)
+end
+

@@ -1,4 +1,77 @@
 """
+    reduceutil(V::Profile, assignments::Pair{Int, Vector{Int}}...)
+
+Utility function that given valuations and a set of assignments of bundles to
+agents, creates a reduced instance, translation tables from the reduced instance
+and a function to convert an allocation in the reduced instance to one in the
+original instance - including the given assignements. The function returns a
+Reduction object without any constraints.
+"""
+function reduceutil(V::Profile, assignments::Pair{Int, Set{Int}}...)
+    # Create translation tables
+    λi = collect(agents(V))
+    λg = collect(items(V))
+
+    # Replace all agents and items assigned with 0
+    for (i, B) in assignments
+        λi[i] = 0
+        for g in B
+            λg[g] = 0
+        end
+    end
+
+    #Remove assigned agents and items
+    filter!(!iszero, λi)
+    filter!(!iszero, λg)
+
+    # Gather relevant valuations
+    V′ = reducevaluation(V, λi, λg)
+
+    return Reduction(V′, λi, λg, (A) -> revert(λi, λg, assignments, A))
+end
+
+
+"""
+    reducevaluation(V::Additive, λi, λg)
+
+Utility function that given additive valuations prior to a reduction and
+translation tables for the reduction, returns new additive valuations for the
+reduced instance. The new valuations are as prior to the reduction, except for
+missing items/agents and changes in item/agent numbers.
+"""
+reducevaluation(V::Additive, λi, λg) = Additive([value(V, i, g) for i=λi, g=λg])
+
+
+"""
+    reducevaluation(V::Submodular, λi, λg)
+
+Utility function that given submodular valuations prior to a reduction and
+translation tables for the reduction, returns new submodular valuations for the
+reduced instance. The new valuations are as prior to the reduction, except for
+missing items/agents and changes in item/agent numbers. That is, the new
+valuation functions work by translating the item numbers to what they would be
+prior to the reduction and calling the valuation function of the agent prior to
+the reduction.
+"""
+function reducevaluation(V::Submodular, λi, λg)
+    Vf′ = [B -> value(V, i, Set(λg[g] for g in B)) for i in λi]
+    return Submodular(Vf′, length(λg))
+end
+
+
+"""
+    reduce(V::Valuation, assignment::Pair{Int, Vector{Int}}...)
+
+Reduce the instance given to a new instance where the involved agents and
+bundles in the assignments are removed. Returns new valuations and a function
+that turns an allocation in the reduced instance into one for the original
+instance, including giving the supplied agent the supplied bundle.
+"""
+reduce(V::Profile, assignments::Pair{Int, Set{Int}}...) =
+    reduceutil(V, assignments...)
+
+
+"""
     reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
 
 Reduce the instance given by the pair (V, C) to a new instance by giving the
@@ -7,34 +80,18 @@ transformation, in addition to converting the allocation to one for the original
 instance, allocates `B` to `i`.
 """
 function reduce(V::Additive, C::Counts{OrderedCategory}, i, B)
-    N, M = agents(V), items(V)
-    n′, m′ = na(V) - 1, ni(V) - length(B)
-
-    Vs = zeros(n′, m′)
-    λg = Int[]
-
-    for g in M
-        g ∈ B && continue
-
-        push!(λg, g)
-        g′ = length(λg)
-
-        Vs[1:n′,g′] = [value(V, j, g) for j in N if i != j]
-    end
+    reduction = reduceutil(V, i => B)
 
     # Create new ordered categories
-    Cs = OrderedCategory[]
+    C′ = OrderedCategory[]
     index = 1
     for c in C
-        newlength = length(c ∩ λg)
-        push!(Cs, OrderedCategory(index, newlength, c.threshold))
+        newlength = length(c ∩ reduction.λg)
+        push!(C′, OrderedCategory(index, newlength, c.threshold))
         index += newlength
     end
 
-    λi = [j for j in agents(V) if i != j]
-    V′, C′ = Additive(Vs), Counts(Cs)
-
-    return Reduction(V′, C′, λi, λg, A -> revert(λg, i, B, A))
+    return Reduction(reduction, Counts(C′))
 end
 
 
@@ -46,39 +103,105 @@ bundle, `B`, to agent `i`. Returns a reduction, where the transformation, in
 addition to converting the allocation to one for the original instance,
 allocates `B` to `i`.
 """
-function reduce(V::Submodular, i, B)
+reduce(V::Submodular, i, B) = reduceutil(V, i => B)
 
-    N, M = agents(V), items(V)
 
-    # Translation table
-    λg = [g for g in M if g ∉ B]
-    λi = [j for j in N if j != i]
+"""
+    revert(λi::Vector{Int}, λg::Vector{Int}, assignments, A)
 
-    Vf′ = [B -> value(V, j, Set(λg[g] for g in B)) for j in λi]
-    V′ = Submodular(Vf′, length(λg))
+Convert an allocation for a reduced instance to one for the original instance,
+including giving the removed bundles to the removed agents.
+"""
+function revert(λi::Vector{Int}, λg::Vector{Int}, assignments, A)
+    A′ = Allocation(
+        na(A) + length(assignments),
+        ni(A) + sum(el -> length(el.second), assignments)
+    )
 
-    return Reduction(V′, λi, λg, (A) -> revert(λg, i, B, A))
+    for i in 1:na(A)
+        give!(A′, λi[i], [λg[g] for g in bundle(A, i)])
+    end
 
+    for (i, B) in assignments give!(A′, i, B) end
+
+    return A′
 end
 
 
 """
-    revert(translate::Vector{Int}, i, B, A::Allocation)
+    reduce(V::Additive, F::Function...)
 
-Convert an allocation for a reduced instance to one for the original instance,
-including giving the removed bundle, `B`, to the removed agent, `i`.
+Reduce an instance V by repeatedly applying the functions f ∈ F to find bundles
+to be allocated. The functions in F are expected to return either a pair, `(i,
+B)`, consisting of an agent `i` and the bundle `B` to be assigned to agent `i`,
+or the value `nothing` if the function couldn't find a valid bundle-agent-pair.
+The functions are called in prioritized order and the instance is reduced and
+normalized between each invocation. The functions are invoked with the valuation
+matrix.
 """
-function revert(λg::Vector{Int}, i, B, A::Allocation)
-    A′ = Allocation(na(A) + 1, ni(A) + length(B))
+function reduce(V::Additive, F::Function...)
 
-    for j in 1:na(A)
-        j′ = j + (j >= i)
-        give!(A′, j′, [λg[g] for g in bundle(A, j)])
+    if na(V) == 0 return V, (A) -> A end
+    if na(V) == 1 return reduce(V, 1 => Set(items(V))) end
+
+    V = normalize(V)
+
+    for f in F
+        res = f(V)
+        if res != nothing
+            i, B = res
+            R₁ = reduce(V, i => B)
+            R₂ = reduce(profile(R₁), F...)
+            return chain(R₁, R₂)
+        end
     end
 
-    give!(A′, i, B)
+    # No reduction to apply
+    return Reduction(V)
+end
 
-    return A′
+
+"""
+    reduce(V::Additive, α::Float64; greedy::Bool=true)
+
+Reduce an ordered instance by normalizing the values and giving any agent that
+value an individual item greater than or equal to α the item.  This reduction is
+performed recursively until no more such items exist. The reduction does not
+decrease the MMS guarantee of any remaining agents and all agents that are
+allocated a bundle in the reduction is guaranteed to value their bundle at least
+α of their MMS guarantee. The agent-item pairs are either selected greedily or
+by finding a maximum matching between agents and such items.
+"""
+function reduce(V::Additive, α::Float64; greedy::Bool=true)
+    if greedy
+        function find_combo(V)
+            i = findfirst(i -> value(V, i, 1) ≥ α, agents(V))
+            return i == nothing ? nothing : i => Set([1])
+        end
+
+        return reduce(V, find_combo)
+    end
+
+    if na(V) == 0 return Reduction(V) end
+    if na(V) == 1 return reduce(V, 1 => items(V)) end
+
+    V = normalize(V)
+    X = BitArray(value(V, i, g) ≥ α for i = agents(V), g = items(V))
+    x = bipartite_matching(X)
+
+    allocations = [i => Set([g]) for (i, g) in x]
+
+    if isempty(allocations) return Reduction(V) end
+
+    # If no agent remains after allocating the matching, give one of the agents
+    # all the remaining goods.
+    if length(allocations) == na(V)
+        append!(allocations[end].second, filter(g -> !any(x[:, g]), items(V)))
+    end
+
+    R₁ = reduce(V, allocations...)
+    R₂ = reduce(profile(R₁), α, greedy=false)
+    return chain(R₁, R₂)
 end
 
 
@@ -149,6 +272,41 @@ function reduce(V::Profile, α::Real)
     end
 
     return Reduction(V)
+end
+
+
+"""
+    order(V::Additive)
+Create an ordered instance for the given weights. The weights are reordered for
+each agent such that item 1 is worth the most and item m is worth the least.
+Returns new additive valuations and a function to convert an allocation in the
+ordered instance into one for the original instance.
+"""
+order(V::Additive) = Reduction(
+        Additive(sort(V.values, dims=2, rev=true)),
+        agents(V), items(V), A -> revert(V, A)
+    )
+
+
+"""
+    revert(V::Additive, A)
+Convert an allocation for the ordered instance to one for the original instance.
+"""
+function revert(V::Additive, A)
+    A′ = Allocation(na(A), ni(A))
+
+    M = Set(items(V))
+    for g in items(V)
+        i = owner(A, g)
+
+        # Select the remaining good with the highest value
+        g′ = maximum(g -> (value(V, i, g), g), M)[2]
+
+        give!(A′, i, g′)
+        M = setdiff(M, g′)
+    end
+
+    return A′
 end
 
 
