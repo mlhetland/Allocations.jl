@@ -4,8 +4,8 @@
 Utility function that given valuations and a set of assignments of bundles to
 agents, creates a reduced instance, translation tables from the reduced instance
 and a function to convert an allocation in the reduced instance to one in the
-original instance - including the given assignements. The function returns a
-Reduction object without any constraints.
+original instance -- including the given assignements. The function returns a
+`Reduction` object without any constraints.
 """
 function reduceutil(V::Profile, assignments::Pair{Int, Set{Int}}...)
     # Create translation tables
@@ -20,7 +20,7 @@ function reduceutil(V::Profile, assignments::Pair{Int, Set{Int}}...)
         end
     end
 
-    #Remove assigned agents and items
+    # Remove assigned agents and items
     filter!(!iszero, λi)
     filter!(!iszero, λg)
 

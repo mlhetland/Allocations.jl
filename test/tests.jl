@@ -672,7 +672,7 @@ end
             A = alloc_gmt18(V)
 
             @test A isa Allocation
-            #Test that all items are allocated properly
+            # Test that all items are allocated properly
             for g in items(V)
                 @test owner(A, g) isa Int
             end
