@@ -106,12 +106,12 @@ reduce(V::Submodular, i, B) = reduceutil(V, i => B)
 
 
 """
-    revert(λi::Vector{Int}, λg::Vector{Int}, assignments, A)
+    revert(λi, λg, assignments, A)
 
 Convert an allocation for a reduced instance to one for the original instance,
 including giving the removed bundles to the removed agents.
 """
-function revert(λi::Vector{Int}, λg::Vector{Int}, assignments, A)
+function revert(λi, λg, assignments, A)
     A′ = Allocation(
         na(A) + length(assignments),
         ni(A) + sum(el -> length(el.second), assignments)
