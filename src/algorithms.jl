@@ -703,14 +703,15 @@ end
 
 """
     alloc_gmt18(V)
+
 The 2/3-approximate MMS allocation algorithm described by Garg, McGlaughlin and
-Taki in their 2018 paper [Approximating Maximin Share Allocations]
-(https://doi.org/10.4230/OASICS.SOSA.2019.20). The algorithm finds a
-2/3-approximate MMS allocation for an instance with additive valuations. The
-algorithm works by performing a set of reductions to simplify the instance,
-limiting the maximum value of a good and the number of high-valued goods. The
-algorithm then uses bag-filling to allocate the remaining goods to the remaining
-agents.
+Taki in their 2018 paper
+[Approximating Maximin Share Allocations](https://doi.org/10.4230/OASICS.SOSA.2019.20).
+The algorithm finds a 2/3-approximate MMS allocation for an instance with
+additive valuations. The algorithm works by performing a set of reductions to
+simplify the instance, limiting the maximum value of a good and the number of
+high-valued goods. The algorithm then uses bag-filling to allocate the remaining
+goods to the remaining agents.
 """
 function alloc_gmt18(V::Additive)
 
