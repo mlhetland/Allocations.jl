@@ -1,5 +1,5 @@
 """
-    reduceutil(V::Profile, assignments...)
+    reduceutil(V::Profile, assignments::Pair...)
 
 Utility function that given valuations and a collection of assignments of
 bundles to agents (`i => B`), creates a reduced instance, translation tables
@@ -7,7 +7,7 @@ from the reduced instance and a function to convert an allocation in the reduced
 instance to one in the original instance -- including the given assignements.
 The function returns a `Reduction` object without any constraints.
 """
-function reduceutil(V::Profile, assignments...)
+function reduceutil(V::Profile, assignments::Pair...)
     # Create translation tables
     λi = collect(agents(V))
     λg = collect(items(V))
@@ -60,14 +60,14 @@ end
 
 
 """
-    reduce(V::Valuation, assignment...)
+    reduce(V::Valuation, assignment::Pair...)
 
 Reduce the instance given to a new instance where the involved agents and
 bundles in the assignments are removed. Returns new valuations and a function
 that turns an allocation in the reduced instance into one for the original
 instance, including giving the supplied agent the supplied bundle.
 """
-reduce(V::Profile, assignments...) = reduceutil(V, assignments...)
+reduce(V::Profile, assignments::Pair...) = reduceutil(V, assignments...)
 
 
 """
@@ -161,7 +161,7 @@ end
 
 
 """
-    reduce(V::Additive, α::Float64; greedy::Bool=true)
+    reduce(V::Additive, α::Real; greedy::Bool=true)
 
 Reduce an ordered instance by normalizing the values and giving any agent that
 value an individual item greater than or equal to α the item.  This reduction is
@@ -171,7 +171,7 @@ allocated a bundle in the reduction is guaranteed to value their bundle at least
 α of their MMS guarantee. The agent-item pairs are either selected greedily or
 by finding a maximum matching between agents and such items.
 """
-function reduce(V::Additive, α; greedy::Bool=true)
+function reduce(V::Additive, α::Real; greedy::Bool=true)
     if greedy
         function find_combo(V)
             i = findfirst(i -> value(V, i, 1) ≥ α, agents(V))
