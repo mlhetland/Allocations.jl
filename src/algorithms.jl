@@ -1,29 +1,31 @@
 using DataStructures
 
-"""
-    alloc_half_mms(V::Additive, C::Counts; α=0.5)
 
-Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
-First the instance is reduced to an ordered normalized instance where each good
-is worth less than 1/2. While there are more than one agent remaining, the
-algorithm creates a bundle with the ``⌊length(category)/n⌋`` lowest-valued
-items in each category. Repeatedly, it converts each of these to the
-highest-valued remaining item in the category until it either runs out of items
-to convert or an agent values the bundle at least 1/2. If the procedure runs
-out of items to convert, it adds the highest-valued remaining item in each
-category, in order, to get ``⌈length(category)/n⌉`` items from each category.
-After each such item is added, the value is again checked for each agent. Since
-the instance was ordered normalized and without items worth 1/2 or more, the
-bundle created will always be worth more than 1/2 to one of the remaining
-agents before the procedure runs out of items to add to it or convert from low-
-to high-valued.
+"""
+   alloc_hh22_1(V::Additive, C::Counts; α=0.5)
+
+The 1/2-approximate MMS allocation under cardinality constraints algorithm
+(Algorithm 3) described by Hummel and Hetland (to be published as part of
+https://link.springer.com/book/9783031206139). First the instance is reduced to
+an ordered normalized instance where each good is worth less than 1/2. While
+there are more than one agent remaining, the algorithm creates a bundle with the
+``⌊length(category)/n⌋`` lowest-valued items in each category. Repeatedly, it
+converts each of these to the highest-valued remaining item in the category
+until it either runs out of items to convert or an agent values the bundle at
+least 1/2. If the procedure runs out of items to convert, it adds the
+highest-valued remaining item in each category, in order, to get
+``⌈length(category)/n⌉`` items from each category.  After each such item is
+added, the value is again checked for each agent. Since the instance was ordered
+normalized and without items worth 1/2 or more, the bundle created will always
+be worth more than 1/2 to one of the remaining agents before the procedure runs
+out of items to add to it or convert from low- to high-valued.
 
 Another approximation ratio, `α`, can be supplied. If `α ≤ 0.5` the algorithm is
 guaranteed to succeed. Otherwise, the method will try to find an allocation with
 an approximation ratio of `α`, but may fail. In the latter case, the results
 will indicate a failure by setting `res.fail` to `true`.
 """
-function alloc_half_mms(V::Additive, C::Counts; α=0.5)
+function alloc_hh22_1(V::Additive, C::Counts; α=0.5)
     R = order(V, C)
 
     # Normalize and allocate items worth α or more.
@@ -760,4 +762,16 @@ function alloc_gmt18(V::Additive)
 
     return transform(R, A)
 end
+
+
+### Aliases ###
+
+"""
+    alloc_half_mms(V::Additive, C::Counts)
+
+Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
+The allocation is found using `alloc_hh22_1`. See [`alloc_hh22_1`](@ref) for a
+detailed description of how the method works.
+"""
+const alloc_half_mms = alloc_hh22_1
 

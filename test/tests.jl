@@ -636,9 +636,9 @@ end
 
         end
 
-        @testset "1/2-MMS - " begin
+        @testset "1/2-MMS - HH22(1)" begin
 
-            test_alg(alloc_half_mms, 1/2, V₁, C₁, MMSs₁)
+            test_alg(alloc_hh22_1, 1/2, V₁, C₁, MMSs₁)
 
 
             # The second half of the bag filling algorithm, where the floor_n(C)
@@ -660,13 +660,17 @@ end
                     0.2 0.4 0.4 0.4 0.1 0.1 0.1 0.1 0.1 0.1
                 ])
 
-                test_alg(alloc_half_mms, 1/2, V, C, [1, 1])
+                test_alg(alloc_hh22_1, 1/2, V, C, [1, 1])
 
             end
 
         end
+    end
 
-        @testset "2/3-MMS Garg, McGlaughlin and Taki (2018)" begin
+    slow_tests &&
+    @testset "MMS approximation" begin
+
+        @testset "2/3-MMS - GMT18" begin
             V = V₀
 
             A = alloc_gmt18(V)

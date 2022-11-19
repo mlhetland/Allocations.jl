@@ -19,6 +19,7 @@ export
     alloc_ghss18_4b,
     alloc_gmt18,
     alloc_half_mms,
+    alloc_hh22_1,
     alloc_hpps20_1,
     alloc_mm,
     alloc_mms,
