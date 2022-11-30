@@ -13,3 +13,5 @@ authors:
     orcid: "https://orcid.org/0000-0001-5691-8177"
     email: "halvard.hummel@ntnu.no"
 repository-code: "https://github.com/mlhetland/Allocations.jl"
+version: "0.1"
+date-released: 2022-11-30
