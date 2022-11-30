@@ -1,5 +1,6 @@
 #!/usr/local/bin/fish
 
+# https://github.com/mikefarah/yq
 set VERSION (yq .version CITATION.cff)
 
 git add LICENSE.txt

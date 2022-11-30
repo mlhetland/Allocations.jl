@@ -1,16 +1,15 @@
-cff-version: 1.2.0
-title: Allocations.jl
-abstract: Algorithms for fair allocation of indivisible items.
-message: >-
-  If you use this software, please cite it as below.
-type: software
+cff-version: "1.2.0"
+title: "Allocations.jl"
+abstract: "Algorithms for fair allocation of indivisible items."
+message: "If you use this software, please cite it as below."
+type: "software"
 authors:
-  - given-names: Magnus Lie
-    family-names: Hetland
-    email: mlh@ntnu.no
+  - given-names: "Magnus Lie"
+    family-names: "Hetland"
+    email: "mlh@ntnu.no"
     orcid: "https://orcid.org/0000-0003-4204-2017"
-  - given-names: Halvard
-    family-names: Hummel
+  - given-names: "Halvard"
+    family-names: "Hummel"
     orcid: "https://orcid.org/0000-0001-5691-8177"
-    email: halvard.hummel@ntnu.no
+    email: "halvard.hummel@ntnu.no"
 repository-code: "https://github.com/mlhetland/Allocations.jl"
