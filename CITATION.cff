@@ -1,6 +1,6 @@
 cff-version: "1.2.0"
 title: "Allocations.jl"
-abstract: "Algorithms for fair allocation of indivisible items."
+abstract: "Algorithms for fair item allocation."
 message: "If you use this software, please cite it as below."
 type: "software"
 authors:
