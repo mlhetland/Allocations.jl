@@ -1,4 +1,4 @@
-#!/usr/local/bin/fish
+#!/usr/bin/env fish
 
 # https://github.com/mikefarah/yq
 set VERSION (yq .version CITATION.cff)
