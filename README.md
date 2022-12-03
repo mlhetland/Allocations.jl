@@ -36,7 +36,7 @@ the package uses a naming scheme based on the original publication.[^1]
 The root of the function name is `alloc_`, followed by a publication code: For
 a single-author paper, the first three letters of the author's last name are
 used; for multi-author papers, the first letter of the first four authors are
-concatenated. To this, the last two digits of the year are added. 
+concatenated. To this, the last two digits of the year are added.
 
 For example, the 2/3-MMS algorithm of Garg, McGlaughlin and Taki (2018) is
 implemented by `alloc_gmt18`. (If the same code applies to multiple
