@@ -6,26 +6,24 @@ to a set of agents. (For more information about this topic, see, e.g., the
 allocation](https://en.wikipedia.org/wiki/Fair_item_allocation), or [the survey
 by Amanatidis et al.](https://arxiv.org/abs/2208.08782))
 
-You can install Allocations.jl using the repository URL. Just start `julia`,
-press `]` and add the package:
-
-```
-julia> ]
-(@v1.8) pkg> add https://github.com/mlhetland/Allocations.jl
-```
-
-This should install both the package and its dependencies. For more
-documentation, import the package and consult its docstrings. E.g.:
+You can install Allocations.jl using the repository URL. Just start `julia` and
+import the package:
 
 ```
 julia> using Allocations
-...
+```
+
+When asked if you wish to install it, simply press enter. This should install
+both the package and its dependencies. For more documentation, you can use the
+help system. E.g.:
+
+```
 julia> ?
 help?> Allocations
 ```
 
-More detailed information may be found in the docstrings of individual
-functions:
+More detailed information may be found in the documentation of individual
+functions and types:
 
 ```
 help?> alloc_mms
