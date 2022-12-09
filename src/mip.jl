@@ -42,7 +42,7 @@ function init_mip(V::Additive, solver)
     @variable(model, A[N, M], binary=true)
 
     for g in M
-        # Each item allocated to at exactly one agent
+        # Each item allocated to exactly one agent
         @constraint(model, sum(A[i, g] for i in N) == 1)
     end
 
