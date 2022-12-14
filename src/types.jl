@@ -415,7 +415,7 @@ function show(io::IO, ::MIME"text/plain", A::Additive)
     summary(io, A)
     print(io, " with ")
     show_agents_and_items(io, A)
-    println(":")
+    println(io, ":")
     Base.print_matrix(io, A.values)
 end
 
