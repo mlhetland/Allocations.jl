@@ -31,8 +31,16 @@ MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
 
 
 # Set up a MIPContext with based on an additive valuation profile. Initializes a
-# JuMP model with constraints ensuring a valid allocation.
-function init_mip(V::Additive, solver)
+# JuMP model with constraints ensuring a valid allocation. These constraints can
+# be modified by suppling lower and upper limits to the number of items in a
+# bundle, or the number of owners an item may have. These arguments can be
+# `nothing` (no limit), an integer limit, or a vector of integers, with one
+# limit per agent or item.
+function init_mip(V::Additive, solver;
+        min_bundle=nothing,   # Agents may receive nothing
+        max_bundle=nothing,   # Agents may receive all items
+        min_owners=1,         # Items have at least one owner
+        max_owners=1)         # Items have at most one owner
 
     model = Model(solver)
 
@@ -41,19 +49,45 @@ function init_mip(V::Additive, solver)
 
     @variable(model, A[N, M], binary=true)
 
-    for g in M
-        # Each item allocated to exactly one agent
-        @constraint(model, sum(A[i, g] for i in N) == 1)
+    isnothing(min_bundle) || broadcast(N, min_bundle) do i, lo
+        @constraint(model, sum(A[i, g] for g in M) >= lo)
+    end
+
+    isnothing(max_bundle) || broadcast(N, max_bundle) do i, hi
+        @constraint(model, sum(A[i, g] for g in M) <= hi)
+    end
+
+    isnothing(min_owners) || broadcast(M, min_owners) do g, lo
+        @constraint(model, sum(A[i, g] for i in N) >= lo)
+    end
+
+    isnothing(max_owners) || broadcast(M, max_owners) do g, hi
+        @constraint(model, sum(A[i, g] for i in N) <= hi)
     end
 
     return MIPContext(V, A, model, solver)
 
 end
 
+# See `mms` and `alloc_mms` for special cases.
+const MIP_LIMIT_DOC = """
+    Lower and upper limits on the size of each bundle and the number of owners for
+    each item may be supplied using the keyword arguments `min_bundle`,
+    `max_bundle`, `min_owners` and `max_owners`, the latter two of which default
+    to `1`. If one of these is `nothing`, the limit is simply absent. Otherwise,
+    the argument is broadcast to the appropriate size.
+    """
+
+const MIP_LIMIT_DOC_MMS = """
+    Because of how they interact with the calculation of MMS, the
+    agent-asymmetric limits `min_bundle` and `max_bundle` must be scalars (or,
+    more generally, satisfy `allequal`).
+    """
+
 
 # Shortcut, so you can use a matrix instead of an Additive valuation profile,
 # including in the alloc_... functions that rely on init_mip.
-init_mip(V::Matrix, solver) = init_mip(Additive(V), solver)
+init_mip(V::Matrix, solver; kwds...) = init_mip(Additive(V), solver; kwds...)
 
 
 # Solves the MIP model and constructs the actual Allocation object in the
@@ -317,7 +351,7 @@ alloc_result(ctx) = (alloc=ctx.alloc, model=ctx.model, ctx.res...)
 
 
 """
-    alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+    alloc_ef1(V, C; solver=conf.MIP_SOLVER, kwds...)
 
 Create an `Allocation` that is envy-free up to one item (EF1), based on the
 valuation profile `V`, possibly subject to the constraints given by the
@@ -330,12 +364,14 @@ explicitly supplying `nothing` for the constraint argument `C`.) The return
 value is a named tuple with the fields `alloc` (the `Allocation`) and `model`
 (the JuMP model used in the computation).
 
+$MIP_LIMIT_DOC
+
 Note that for some constraints, there may not *be* an EF1 allocation, in which
 case the function will fail with an exception.
 """
-function alloc_ef1(V, C; solver=conf.MIP_SOLVER)
+function alloc_ef1(V, C; solver=conf.MIP_SOLVER, kwds...)
 
-    init_mip(V, solver) |>
+    init_mip(V, solver; kwds...) |>
     enforce_ef1 |>
     enforce(C) |>
     solve_mip |>
@@ -345,7 +381,7 @@ end
 
 
 """
-    alloc_efx(V[, C]; solver=conf.MIP_SOLVER)
+    alloc_efx(V[, C]; solver=conf.MIP_SOLVER, kwds...)
 
 Create an `Allocation` that is envy-free up to any item (EFX), based on the
 valuation profile `V`, possibly subject to the constraints given by the
@@ -353,14 +389,16 @@ valuation profile `V`, possibly subject to the constraints given by the
 mixed-integer program. The return value is a named tuple with the fields `alloc`
 (the `Allocation`) and `model` (the JuMP model used in the computation).
 
+$MIP_LIMIT_DOC
+
 Note that while some constraints may prevent an exact EFX allocation, it is
 currently (Mar 2021) an open question whether EFX always exists in the
 unconstrained case (see, e.g., [*Improving EFX Guarantees through Rainbow Cycle
 Number*](https://arxiv.org/abs/2103.01628) by Chaudhury et al.).
 """
-function alloc_efx(V, C=nothing; solver=conf.MIP_SOLVER)
+function alloc_efx(V, C=nothing; solver=conf.MIP_SOLVER, kwds...)
 
-    init_mip(V, solver) |>
+    init_mip(V, solver; kwds...) |>
     enforce_efx |>
     enforce(C) |>
     solve_mip |>
@@ -382,7 +420,7 @@ end
 
 
 """
-    alloc_mnw(V[, C]; mnw_warn=false, solver=conf.MIP_SOLVER)
+    alloc_mnw(V[, C]; mnw_warn=false, solver=conf.MIP_SOLVER, kwds...)
 
 Create an `Allocation` attaining maximum Nash welfare (MNW), based on the
 valuation profile `V`, possibly subject to the constraints given by the
@@ -422,10 +460,13 @@ The return value is a named tuple with fields `alloc` (the `Allocation`),
 `mnw` (the achieved Nash welfare for the agents with nonzero utility),
 `mnw_prec` (whether or not there was enough precision to satisfy the lower bound
 guaranteeing exact MNW) and `model` (the JuMP model used in the computation).
-"""
-function alloc_mnw(V, C=nothing; mnw_warn=false, solver=conf.MIP_SOLVER)
 
-    init_mip(V, solver) |>
+$MIP_LIMIT_DOC
+"""
+function alloc_mnw(V, C=nothing; mnw_warn=false, solver=conf.MIP_SOLVER,
+        kwds...)
+
+    init_mip(V, solver; kwds...) |>
     achieve_mnw(mnw_warn) |>
     enforce(C) |>
     solve_mip |>
@@ -435,15 +476,17 @@ end
 
 
 """
-    alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
+    alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER, kwds...)
 
 Equivalent to `alloc_mnw`, except that EF1 is enforced. Without any added
 constraints, MNW implies EF1, so this function is not needed in that case.
 Therefore the argument `C` is not optional.
-"""
-function alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER)
 
-    init_mip(V, solver) |>
+$MIP_LIMIT_DOC
+"""
+function alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER, kwds...)
+
+    init_mip(V, solver; kwds...) |>
     achieve_mnw(mnw_warn) |>
     enforce_ef1 |>
     enforce(C) |>
@@ -463,7 +506,7 @@ end
 
 
 """
-    alloc_mm(V[, C]; cutoff=nothing, solver=conf.MIP_SOLVER)
+    alloc_mm(V[, C]; cutoff=nothing, solver=conf.MIP_SOLVER, kwds...)
 
 Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
 bundle value is maximized. The `cutoff`, if any, is a level at which we are
@@ -471,10 +514,12 @@ satisfied, i.e., any allocation where all agents attain this value is
 acceptable. The return value is a named tuple with fields `alloc` (the
 `Allocation`), `mm` (the lowest agent utility) and `model` (the JuMP model
 used in the computation).
-"""
-function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER)
 
-    init_mip(V, solver) |>
+$MIP_LIMIT_DOC
+"""
+function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER, kwds...)
+
+    init_mip(V, solver; kwds...) |>
     achieve_mm(cutoff) |>
     enforce(C) |>
     solve_mip |>
@@ -484,7 +529,7 @@ end
 
 
 """
-    mms(V, i[, C]; solver=conf.MIP_SOLVER)
+    mms(V, i[, C]; solver=conf.MIP_SOLVER, kwds...)
 
 Determine the maximin share of agent `i`, i.e., the bundle value she is
 guaranteed to attain if she partitions the items and the other agents choose
@@ -493,14 +538,23 @@ empirical approximation ratios of approximate MMS allocation algorithms. Also
 used as a subroutine in `alloc_mms`. The return value is a named tuple with the
 fields `mms` (the maximin share of agent `i`) and `model` (the JuMP model used
 in the computation).
+
+$MIP_LIMIT_DOC
+$MIP_LIMIT_DOC_MMS
 """
-function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER)
+function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER, kwds...)
+
+    lo = get(kwds, :min_bundle, nothing)
+    isnothing(lo) || @assert(allequal(lo))
+
+    hi = get(kwds, :max_bundle, nothing)
+    isnothing(hi) || @assert(allequal(hi))
 
     # Let all agents be clones of agent i
     Vi = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
 
     # maximin in this scenario is MMS for agent i
-    res = alloc_mm(Vi, C, solver=solver)
+    res = alloc_mm(Vi, C; solver=solver, kwds...)
 
     return (mms=res.mm, model=res.model)
 
@@ -528,7 +582,7 @@ end
 
 
 """
-    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER)
+    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER, kwds...)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -541,14 +595,18 @@ the instance, `alpha`, the lowest fraction of MMS that any agent achieves
 in computing `alpha`) and `mms_models` (the JuMP models used to compute the
 individual maximin shares). If `cutoff` is set to `true`, this fraction is
 capped at 1.
+
+$MIP_LIMIT_DOC
+$MIP_LIMIT_DOC_MMS
 """
-function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
+function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER,
+    kwds...)
 
     N, M = agents(V), items(V)
 
     X = zeros(na(V), ni(V))
 
-    ress = [mms(V, i, C, solver=solver) for i in N]
+    ress = [mms(V, i, C; solver=solver, kwds...) for i in N]
 
     # individual MMS values -- also included in the result
     mmss = [res.mms for res in ress]
@@ -566,7 +624,7 @@ function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
     max_alpha = cutoff ? 1.0 : nothing
 
     # maximin with scaled values is as close to the MMS guarantee as possible
-    res = alloc_mm(Additive(X), C, cutoff=max_alpha, solver=solver)
+    res = alloc_mm(Additive(X), C; cutoff=max_alpha, solver=solver, kwds...)
 
     return (alloc=res.alloc, model=res.model, mms_models=mms_models,
             alpha=res.mm, mmss=mmss)
@@ -574,8 +632,7 @@ function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER)
 end
 
 
-alloc_mms(V::Matrix, C=nothing; cutoff=false, solver=conf.MIP_SOLVER) =
-    alloc_mms(Additive(V), C, cutoff=cutoff, solver=solver)
+alloc_mms(V::Matrix, C=nothing; kwds...) = alloc_mms(Additive(V), C; kwds...)
 
 
 # Extract the allocation at the end of the pipeline.
@@ -597,7 +654,7 @@ wt_gini(i, n) = 2(n - i) + 1
 
 
 """
-    alloc_ggi(V[, C]; wt=wt_gini, solver=conf.MIP_SOLVER)
+    alloc_ggi(V[, C]; wt=wt_gini, solver=conf.MIP_SOLVER, kwds...)
 
 Maximizes a generalized Gini index (GGI), also known as a generalized Gini
 social-evaluation functions. The function being maximized is an ordered weighted
@@ -614,12 +671,13 @@ The default `wt_gini` gives the (non-normalized) weights of the original Gini
 social-evaluation. Two other notable cases for `wt` are `(i, _) -> i == 1`,
 which yields a maximin allocation, and `(i, _) -> 1`, which yields a purely
 utilitarian allocation (with no consideration for fairness). The solution method
-used is based on that of Lesca and Perny (linear formulation ``\\Pi'_W``,
-without ``\\alpha``, ``\\alpha'``, ``\\beta`` and ``\\beta'``) in their paper
-2010 paper [“LP Solvable Models for Multiagent Fair Allocation
+used is based on that of Lesca and Perny (linear formulation ``\\Pi'_W``) in
+their paper 2010 paper [“LP Solvable Models for Multiagent Fair Allocation
 Problems”](https://doi.org/10.3233/978-1-60750-606-5-393). The return value is a
 named tuple with the fields `alloc` (the `Allocation` that has been produced)
 and `model` (the JuMP model used in the computation).
+
+$MIP_LIMIT_DOC
 
 In the original inequality measures, the mean agent utility is included as a
 normalizing term, which is harmless for the case of identical valuations
@@ -630,9 +688,9 @@ optimization will tend to drive the mean utility *down*. Therefore only the term
 measuring (in)equality (i.e., the ordered weighted sum of agent utilities) is
 used.
 """
-function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER)
+function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER, kwds...)
 
-    init_mip(V, solver) |>
+    init_mip(V, solver; kwds...) |>
     achieve_ggi(wt) |>
     enforce(C) |>
     solve_mip |>

@@ -428,6 +428,58 @@ end
 
     end
 
+    slow_tests &&
+    @testset "limits, $func" for func in [
+        alloc_ef1, alloc_efx, alloc_mnw, alloc_mnw_ef1, alloc_mm, alloc_ggi,
+        alloc_mms]
+        # Could add `cutoff=true` for `alloc_mms`
+
+        V = V₀
+
+        # `alloc_ef1` and `alloc_mnw_ef1` require a constraint, so we'll supply
+        # `nothing` to all:
+        C = nothing
+
+        N, M = agents(V), items(V)
+        n, m = na(V), ni(V)
+
+        for (min_bundle, max_bundle, min_owners, max_owners) in [
+                (nothing, 10, 2, nothing)
+                (3, 3, nothing, nothing)
+                (rand(1:2, n), rand(2:3, n), nothing, rand(1:3, m))
+            ]
+
+            lob = something(min_bundle, 0)
+            hib = something(max_bundle, m)
+            loo = something(min_owners, 0)
+            hio = something(max_owners, n)
+
+            if func == alloc_mms && !(allequal(lob) && allequal(hib))
+                @test_throws AssertionError func(V, C,
+                      min_bundle=min_bundle,
+                      max_bundle=max_bundle,
+                      min_owners=min_owners,
+                      max_owners=max_owners)
+                continue
+            end
+
+            A = func(V, C,
+                  min_bundle=min_bundle,
+                  max_bundle=max_bundle,
+                  min_owners=min_owners,
+                  max_owners=max_owners).alloc
+
+            broadcast(N, lob, hib) do i, lo, hi
+                @test lo <= length(bundle(A, i)) <= hi
+            end
+
+            broadcast(M, loo, hio) do i, lo, hi
+                @test lo <= length(owners(A, i)) <= hi
+            end
+
+        end
+    end
+
 end
 
 @testset "Algorithms" begin

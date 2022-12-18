@@ -51,6 +51,7 @@ export
     normalize,
     owned,
     owner,
+    owners,
     profile,
     prop_alpha,
     required,
