@@ -2,23 +2,24 @@ using DataStructures
 
 
 """
-   alloc_hh22_1(V::Additive, C::Counts; α=0.5)
+    alloc_hh22_1(V::Additive, C::Counts; α=0.5)
 
 The 1/2-approximate MMS allocation under cardinality constraints algorithm
-(Algorithm 3) described by Hummel and Hetland (to be published as part of
-https://link.springer.com/book/9783031206139). First the instance is reduced to
-an ordered normalized instance where each good is worth less than 1/2. While
-there are more than one agent remaining, the algorithm creates a bundle with the
-``⌊length(category)/n⌋`` lowest-valued items in each category. Repeatedly, it
-converts each of these to the highest-valued remaining item in the category
-until it either runs out of items to convert or an agent values the bundle at
-least 1/2. If the procedure runs out of items to convert, it adds the
-highest-valued remaining item in each category, in order, to get
-``⌈length(category)/n⌉`` items from each category.  After each such item is
-added, the value is again checked for each agent. Since the instance was ordered
-normalized and without items worth 1/2 or more, the bundle created will always
-be worth more than 1/2 to one of the remaining agents before the procedure runs
-out of items to add to it or convert from low- to high-valued.
+(Algorithm 3) described by Hummel and Hetland in their [Maximin Shares Under
+Cardinality Constraints](https://doi.org/10.1007/978-3-031-20614-6_11) (2022).
+First the instance is reduced to an ordered normalized instance where each good
+is worth less than 1/2. While there are more than one agent remaining, the
+algorithm creates a bundle with the ``⌊|\\text{category}|/n⌋`` lowest-valued
+items in each category. Repeatedly, it converts each of these to the
+highest-valued remaining item in the category until it either runs out of items
+to convert or an agent values the bundle at least 1/2. If the procedure runs out
+of items to convert, it adds the highest-valued remaining item in each category,
+in order, to get ``⌈|\\text{category}|/n⌉`` items from each category.  After
+each such item is added, the value is again checked for each agent. Since the
+instance was ordered normalized and without items worth 1/2 or more, the bundle
+created will always be worth more than 1/2 to one of the remaining agents before
+the procedure runs out of items to add to it or convert from low- to
+high-valued.
 
 Another approximation ratio, `α`, can be supplied. If `α ≤ 0.5` the algorithm is
 guaranteed to succeed. Otherwise, the method will try to find an allocation with
@@ -284,21 +285,21 @@ The original algorithm builds on an initial allocation, but does not specify
 what this allocation should be. It also does not deal with the case where one or
 more agents ends up with zero utility; in fact the procedure will not work even
 if we start with two or more agents with zero utility in the intial allocation.
-The strategy followed here is the same as that of Caragiannis et al.
-(https://doi.org/10.1145/3355902), where a maximum cardinality set of agents
+The strategy followed here is the same as that of [Caragiannis et
+al.](https://doi.org/10.1145/3355902), where a maximum cardinality set of agents
 achieving positive utility is found using bipartite matching (with no fairness
 considerations). The remaining items are randomly allocated to agents among
 these that value them, if any. Remaining agents and items are ignored by the
 procedure.
 
-Following the algorithm of Barman et al., the tie-breaking procedure (Algorithm
-1) of Halpern et al. (http://arxiv.org/abs/2007.06073) is used, where the MNW
-allocation is transformed into the lexicographically greatest MNW, according to
-some ordering of the agents, providing group-strategyproofness (GSP) in addition
-to the EF1 and PO guarantees that follow from MNW. By default, the agent
-ordering/priority is random; if this randomization is turned off (with `randpri`
-set to false), the default ordering is used, with agent `1` receiving the
-highest priority, etc.
+Following the algorithm of Barman et al., the tie-breaking procedure
+(Algorithm 1) of [Halpern et al.](http://arxiv.org/abs/2007.06073) is used,
+where the MNW allocation is transformed into the lexicographically greatest MNW,
+according to some ordering of the agents, providing group-strategyproofness
+(GSP) in addition to the EF1 and PO guarantees that follow from MNW. By default,
+the agent ordering/priority is random; if this randomization is turned off (with
+`randpri` set to false), the default ordering is used, with agent `1` receiving
+the highest priority, etc.
 
 !!! note
 
@@ -637,10 +638,10 @@ Under Cardinality Constraints] (https://doi.org/10.24963/ijcai.2018/13). Finds a
 under cardinality constraints by converting the additive instance under
 cardinality constraints to a submodular instance without cardinality
 constraints. The allocation is then found by using the method of Ghodsi et al.
-(`alloc_ghhs18_4b`), with possible reallocation of items to satisfy the
+(`alloc_ghss18_4b`), with possible reallocation of items to satisfy the
 constraints. Both keyword arguments, `a` and `ghss18_4b_warn`, are passed
-directly to `alloc_ghhs18_4b` as respectively the keyword arguments `a` and
-`x_warn`. See [`alloc_ghhs18_4b`](@ref) for documentation on how to use them.
+directly to `alloc_ghss18_4b` as respectively the keyword arguments `a` and
+`x_warn`. See [`alloc_ghss18_4b`](@ref) for documentation on how to use them.
 """
 function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
 

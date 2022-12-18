@@ -11,7 +11,9 @@ A struct with fields for global configuration of the `Allocations` module.
 
 # Fields
 
-    MIP_SOLVER :: Any
+```julia
+MIP_SOLVER::Any
+```
 
 The (factory for the) JuMP optimizer to be used (by default) for mixed-integer
 programming. Initially set to `HiGHS.Optimizer`, with `log_to_console` set to
@@ -19,7 +21,9 @@ programming. Initially set to `HiGHS.Optimizer`, with `log_to_console` set to
 (e.g., using the JuMP function `optimizer_with_attributes`) or by passing the
 solver directly to the appropriate allocation functions.
 
-    MIP_SUCCESS :: Any
+```julia
+MIP_SUCCESS::Any
+```
 
 Container of acceptable MIP statuses. By default, has the value
 `[MOI.OPTIMAL]`.

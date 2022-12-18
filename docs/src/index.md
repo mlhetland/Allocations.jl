@@ -1,20 +1,53 @@
 # Allocations.jl
 
 The Allocations package deals with the fair allocation of indivisible items
-to a set of agents. For some background on this topic, see, e.g., the [Wikipedia
-entry on fair item
-allocation](https://en.wikipedia.org/wiki/Fair_item_allocation), or the surveys
-by [Amanatidis et al.](https://arxiv.org/abs/2208.08782) and
-[Suksompong](https://doi.org/10.1145/3505156.3505162), on the unconstrained and
-constrained versions of the problem, respectively.
+to a set of agents. An instance of this problem consists of:
 
+- A set $N$ of $n$ *agents* and a set $M$ of $m$ *items*;
+- One *valuation function* $v_i:2^M\to\R$ for each agent $i\in N$;
+
+For simplicity, we may simply let $N=\{1,\dots,n\}$ and $M=\{1,\dots,m\}$.[^1]
+
+The goal is to find an *allocation* $A=(A_1,\dots,A_n)$, which gives a *bundle*
+$A_i\subseteq M$ to each agent, and which satisfies certain fairness criteria.
+The allocation is usually required to form a partition of $M$, though in some
+scenarios, one may deviate from this.
+
+In `Allocations.jl`, an instance is represented by the *valuation profile*
+$V=\{v_i:i\in N\}$, in the form of a `Profile` object. Given a profile `V`, the
+various parts of the instance may be accessed as follows:
+
+- `items(V)`: The item set $N$, as an iterable;
+- `agents(V)`: The agent set $M$, as an iterable;
+- `value(V, i, S)`: The value agent i assigns to the set $S\subseteq
+  M$, i.e., $v_i(S)$.
+
+`S` may be any iterable. If it a single item (i.e., `Int`) `g`, it is
+interpreted as a singleton, `[g]` (though usually handled more efficiently).
+The number of agents and items, respectively, is found using `na(V)` and `ni(V)`
+
+In addition to this basic setting, instances may be constrained, by supplying
+some *constraint object*, describing which bundles are feasible. For example, if
+one is looking for bundles that are *connected* in some sense, the constraint
+object will typically be a graph that defines the connectivity relation, etc.
+
+Allocations are represented by `Allocation` objects. Given an allocation `A`,
+the bundle of agent `i` is found using `bundle(A, i)`.
+
+!!! tip
+
+    For more on this topic, see, e.g., the [Wikipedia entry on fair item
+    allocation](https://en.wikipedia.org/wiki/Fair_item_allocation), or the
+    surveys by [Amanatidis et al.](https://arxiv.org/abs/2208.08782) and
+    [Suksompong](https://doi.org/10.1145/3505156.3505162), on the unconstrained
+    and constrained versions of the problem, respectively.
 
 ## Installation
 
 To install the package, you can simply import it in the [Julia
 REPL](https://docs.julialang.org/en/v1/stdlib/REPL/):
 
-```julia-repl
+```jldoctest intro
 julia> using Allocations
 ```
 
@@ -35,7 +68,7 @@ You can then import the module as before.
 
 To specify an allocation problem instance, create a valuation profile:
 
-```julia
+```jldoctest intro
 julia> V = Profile([1 2 3; 2 3 1])
 Additive{Matrix{Int64}} with 2 agents and 3 items:
  1  2  3
@@ -47,7 +80,7 @@ Additive{Matrix{Int64}} with 2 agents and 3 items:
 function (ones called `alloc_...`), e.g., for finding a maximum Nash welfare
 (MNW) allocation:
 
-```julia-repl
+```jldoctest intro
 julia> res = alloc_mnw(V);
 ```
 
@@ -59,7 +92,7 @@ overhead.
 These functions take a `Profile` as input and return a named tuple with the
 field `alloc` referring to an `Allocation`:
 
-```julia-repl
+```jldoctest intro
 julia> A = res.alloc
 Allocation with 2 agents and 3 items:
   1 => {3}
@@ -68,7 +101,7 @@ Allocation with 2 agents and 3 items:
 
 The bundles of each agent is available through the `bundle` function:
 
-```julia-repl
+```jldoctest intro
 julia> bundle(A, 2)
 Set{Int64} with 2 elements:
   2
@@ -84,7 +117,7 @@ of the allocation that are naturally computed as part of the allocation process.
 For the MNW case, the objective value (the Nash welfare, which is being
 maximized) is available as `mnw`:
 
-```julia-repl
+```jldoctest intro
 julia> res.mnw
 15.0
 ```
@@ -93,7 +126,7 @@ The allocation functions also permit a matrix argument as a shortcut, implicitly
 creating an `Additive`. For example, you can find a maximin share (MMS)
 allocation as follows:
 
-```julia-repl
+```jldoctest intro
 julia> alloc_mms([1 1 2 3; 2 1 2 3]).alloc
 Allocation with 2 agents and 4 items:
   1 => {2, 3}

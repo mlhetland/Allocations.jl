@@ -393,8 +393,8 @@ $MIP_LIMIT_DOC
 
 Note that while some constraints may prevent an exact EFX allocation, it is
 currently (Mar 2021) an open question whether EFX always exists in the
-unconstrained case (see, e.g., [*Improving EFX Guarantees through Rainbow Cycle
-Number*](https://arxiv.org/abs/2103.01628) by Chaudhury et al.).
+unconstrained case (see, e.g., [Improving EFX Guarantees through Rainbow Cycle
+Number](https://arxiv.org/abs/2103.01628) by Chaudhury et al.).
 """
 function alloc_efx(V, C=nothing; solver=conf.MIP_SOLVER, kwds...)
 
@@ -664,8 +664,8 @@ parameterized by the function `wt(i, n)`. It is generally assumed that the
 weights are nondecreasing in `i`. Note that there is no need to use normalized
 weights (i.e., to produce a weighted average, despite the term OWA), as is often
 the case when such measures are used to measure *in*equality (e.g., by
-subtracting the OWA from an ordinary average, cf. [“Generalized gini inequality
-indices”](https://doi.org/10.1016/0165-4896(81)90018-4) by John A. Weymark).
+subtracting the OWA from an ordinary average, cf. [Generalized gini inequality
+indices](https://doi.org/10.1016/0165-4896(81)90018-4) by John A. Weymark).
 
 The default `wt_gini` gives the (non-normalized) weights of the original Gini
 social-evaluation. Two other notable cases for `wt` are `(i, _) -> i == 1`,
