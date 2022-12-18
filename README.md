@@ -1,5 +1,7 @@
 # Allocations.jl
 
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://mlhetland.github.io/Allocations.jl/dev)
+
 The Allocations package deals with the fair allocation of indivisible items
 to a set of agents. For some background on this topic, see, e.g., the [Wikipedia
 entry on fair item
