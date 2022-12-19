@@ -20,9 +20,8 @@ makedocs(
     modules = [Allocations]
 )
 
-repo = get(ENV, "GITHUB_REPOSITORY", nothing) ≠ nothing &&
-deploydocs(
-    repo = "github.com/$repo.git"
-)
-
-; # Suppress `false` in REPL
+if haskey(ENV, "GITHUB_REPOSITORY")
+    deploydocs(
+        repo = "github.com/" * ENV["GITHUB_REPOSITORY"] * ".git"
+    )
+end
