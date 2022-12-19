@@ -19,12 +19,13 @@ various parts of the instance may be accessed as follows:
 
 - `items(V)`: The item set $N$, as an iterable;
 - `agents(V)`: The agent set $M$, as an iterable;
-- `value(V, i, S)`: The value agent i assigns to the set $S\subseteq
+- `value(V, i, S)`: The value agent $i$ assigns to the set $S\subseteq
   M$, i.e., $v_i(S)$.
 
 `S` may be any iterable. If it a single item (i.e., `Int`) `g`, it is
 interpreted as a singleton, `[g]` (though usually handled more efficiently).
-The number of agents and items, respectively, is found using `na(V)` and `ni(V)`
+The number of agents and items, respectively, are found using `na(V)` and
+`ni(V)`
 
 In addition to this basic setting, instances may be constrained, by supplying
 some *constraint object*, describing which bundles are feasible. For example, if
@@ -99,7 +100,7 @@ Allocation with 2 agents and 3 items:
   2 => {1, 2}
 ```
 
-The bundles of each agent is available through the `bundle` function:
+The bundle of each agent is available through the `bundle` function:
 
 ```jldoctest intro
 julia> bundle(A, 2)

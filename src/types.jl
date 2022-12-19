@@ -523,7 +523,7 @@ abstract type Constraint end
 
 One of the categories in a `Counts` constraint, from which each agent can hold
 at most a given number of items. The category supports iteration (over its
-members), and the threashold is available through the `threshold` accessor.
+members), and the threshold is available through the `threshold` accessor.
 """
 mutable struct Category
     members::Set{Int}
@@ -602,7 +602,7 @@ required(c::OrderedCategory, n) = max(c.n_items - (n - 1) * c.threshold, 0)
 """
     struct Counts{T} <: Constraint
 
-The *cardinality constraints* introduced by Biswas and Barman in their 2018
+The *cardinality constraints* used by Biswas and Barman in their 2018
 paper [Fair Division Under Cardinality
 Constraints](https://www.ijcai.org/proceedings/2018/13). This is a form of
 constraint consisting of several `Category` objects, available through

@@ -770,7 +770,7 @@ end
 """
     alloc_half_mms(V::Additive, C::Counts)
 
-Find a 1/2-approximate MMS allocation that obeys the constraints imposed by C.
+Find a 1/2-approximate MMS allocation that obeys the constraints imposed by `C`.
 The allocation is found using `alloc_hh22_1`. See [`alloc_hh22_1`](@ref) for a
 detailed description of how the method works.
 """
