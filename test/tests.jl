@@ -723,18 +723,47 @@ end
     @testset "MMS approximation" begin
 
         @testset "2/3-MMS - GMT18" begin
-            V = V₀
 
-            A = alloc_gmt18(V)
+            @testset "Base test" begin
+                V = V₀
 
-            @test A isa Allocation
-            # Test that all items are allocated properly
-            for g in items(V)
-                @test owner(A, g) isa Int
+                A = alloc_gmt18(V)
+
+                @test A isa Allocation
+                # Test that all items are allocated properly
+                for g in items(V)
+                    @test owner(A, g) isa Int
+                end
+
+                for i in agents(V)
+                    @test value(V, i, bundle(A, i)) ≥ 2/3 * mms(V, i).mms
+                end
             end
 
-            for i in agents(V)
-                @test value(V, i, bundle(A, i)) ≥ 2/3 * mms(V, i).mms
+            @testset "All bundles contain an item valued at ≥2/3" begin
+                V = Additive([
+                    0.45 0.27 0.10;
+                    0.49 0.49 0.49
+                ])
+
+                A = alloc_gmt18(V)
+
+                @test A isa Allocation
+                # Test that all items are allocated properly
+                for g in items(V)
+                    @test owner(A, g) isa Int
+                end
+
+                # Test that each agent receives (2/3)-MMS
+                for i in agents(V)
+                    @test value(V, i, bundle(A, i)) ≥ 2/3 * mms(V, i).mms
+                end
+
+                # Test that each agent has an item valued at (2/3)-MMS or higher
+                for i in agents(V)
+                    @test any(value(V, i, g) ≥ 2/3 * mms(V, i).mms
+                                for g in bundle(A, i))
+                end
             end
         end
 

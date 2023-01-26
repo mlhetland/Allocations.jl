@@ -140,7 +140,7 @@ matrix.
 """
 function reduce(V::Additive, F::Function...)
 
-    if na(V) == 0 return V, (A) -> A end
+    if na(V) == 0 return Reduction(V) end
     if na(V) == 1 return reduce(V, 1 => items(V)) end
 
     V = normalize(V)
@@ -195,7 +195,8 @@ function reduce(V::Additive, α::Real; greedy::Bool=true)
     # If no agent remains after allocating the matching, give one of the agents
     # all the remaining goods.
     if length(allocations) == na(V)
-        append!(allocations[end].second, filter(g -> !any(x[:, g]), items(V)))
+        append!(allocations[end].second,
+                filter(g -> !any(g == g′ for (i, g′) in x), items(V)))
     end
 
     R₁ = reduce(V, allocations...)
