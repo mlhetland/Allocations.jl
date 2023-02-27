@@ -450,7 +450,7 @@ be enabled by setting the `mnw_warn` keyword to `true`.
     The warnings are based on the lower bounds described by Caragiannis et al.
     On the one hand, the bound is only used to test whether current
     floating-point precision is sufficient; any tolerance or gap used by the
-    solver is not used, which might in principle mean that false negative are
+    solver is not used, which might in principle mean that false negatives are
     possible. On the other hand, these bounds, especially the one for exact MNW,
     may in practice be quite loose, with small variations in agent utilities
     leading to large changes in objective value, unless the changes are finely
