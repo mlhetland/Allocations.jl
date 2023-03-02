@@ -730,7 +730,8 @@ function alloc_gmt18(V::Additive)
         N, n, M = agents(V), na(V), items(V)
         j = findlast(g -> any(i -> value(V, i, g) ≥ 1/3, N), M)
 
-        if j ≤ n return nothing end
+        # j is nothing if all items are valued at < 1/3 by all agents
+        if isnothing(j) || j ≤ n return nothing end
 
         B = Set([j - 1, j])
         return findfirst(i -> value(V, i, B) ≥ 2/3, N) => B
