@@ -89,6 +89,14 @@ function check end
 
 
 """
+    check(V, A, C::Nothing)
+
+Trivial check that `A` satisfies a null-constraint. Always returns true.
+"""
+check(V, A, ::Nothing) = true
+
+
+"""
     check(V, A, C::Counts)
 
 Check whether the allocation `A` respects the cardinality constraints `C`.

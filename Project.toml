@@ -1,7 +1,7 @@
 name = "Allocations"
 uuid = "260a3f16-0ffa-4f23-875b-1350d3996fb5"
 authors = ["Magnus Lie Hetland <mlh@ntnu.no>", "Halvard Hummel <halvard.hummel@ntnu.no>"]
-version = "0.1"
+version = "0.1.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -9,6 +9,7 @@ Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 
 [compat]
 DataStructures = "0.18"
