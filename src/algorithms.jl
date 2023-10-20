@@ -224,11 +224,12 @@ end
 
 The first algorithm (**Alg-Identical**) described by Barman, Krishnamurty and
 Vaish in their 2018 paper [Greedy Algorithms for Maximizing Nash Social
-Welfare](https://doi.org/10.1145/3355902). The algorithm finds a
-1.061-approximate MNW allocation when agents have identical valuations, i.e.,
-for any agents `i`, `j` and item `g`, `value(V, i, g) == value(V, j, g)`. (This
-approximation ratio applies to the geometric mean of agent utilities, not the
-raw product.) The result will also be envy-free up to any item (EFX).
+Welfare](https://github.com/mlhetland/Allocations.jl-private/tree/dev). The
+algorithm finds a 1.061-approximate MNW allocation when agents have identical
+valuations, i.e., for any agents `i`, `j` and item `g`, `value(V, i, g) ==
+value(V, j, g)`. (This approximation ratio applies to the geometric mean of
+agent utilities, not the raw product.) The result will also be envy-free up to
+any item (EFX).
 
 The algorithm follows a straightforward greedy allocation procedure, where in
 each iteration, the most valuable item is allocated to the agent with the lowest
