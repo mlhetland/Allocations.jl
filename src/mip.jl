@@ -245,7 +245,7 @@ enforce(C::Conflicts) = function(ctx)
 
     V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
-    G = graph(C)
+    G = C.graph
 
     @assert nv(G) == ni(V)
 

@@ -30,11 +30,11 @@ function alloc_hh22_1(V::Additive, C::Counts; α=0.5)
     R = order(V, C)
 
     # Normalize and allocate items worth α or more.
-    R′ = reduce(profile(R), constraint(R), α)
+    R′ = reduce(R.profile, R.constraint, α)
 
     R = chain(R, R′)
 
-    V, C = profile(R), constraint(R)
+    V, C = R.profile, R.constraint
     N, n = agents(V), na(V)
 
     while n > 1
@@ -76,7 +76,7 @@ function alloc_hh22_1(V::Additive, C::Counts; α=0.5)
 
         R′ = reduce(V, C, findfirst(i -> value(V, i, B) ≥ α, N), B)
         R = chain(R, R′)
-        V, C = profile(R), constraint(R)
+        V, C = R.profile, R.constraint
         N, n = agents(V), na(V)
     end
 
@@ -167,7 +167,7 @@ Same as `alloc_rand(V, C)`, for `n` agents and `m` items.
 """
 function alloc_rand(n::Int, m::Int, C::Conflicts)
 
-    G = graph(C)
+    G = C.graph
 
     @assert Δ(G) < n
 
@@ -520,7 +520,7 @@ function alloc_ghss18_4(V::Submodular, MMSs)
 
     # Allocate all items worth at least 1/3
     R = reduce(V, 1/3)
-    V = profile(R)
+    V = R.profile
 
     A = Allocation(V)
 
@@ -656,7 +656,7 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
 
             # An agent cannot get value from more items than the threshold of
             # the given category.
-            n_items = min(threshold(c), length(overlap))
+            n_items = min(c.threshold, length(overlap))
 
             # Give the agent the `n_items` most valuable items in the overlap.
             total += sum(partialsort!(overlap, 1:n_items, rev=true))
@@ -685,13 +685,13 @@ function alloc_bb18_3(V::Additive, C::Counts; a=3, ghss18_4b_warn=true)
     for i in N, c in C
         B = overlap(i, c)
         # If there are more items than allowed
-        while length(B) > threshold(c)
+        while length(B) > c.threshold
             # Give away the item in c that `i` prefers the least
             g = minimum(g -> (value(V, i, g), g), B)[2]
 
             # Give the item away to any agent that is allowed more items from
             # the category
-            i′ = findfirst(i′ -> length(overlap(i′, c)) < threshold(c), N)
+            i′ = findfirst(i′ -> length(overlap(i′, c)) < c.threshold, N)
 
             deny!(A, i, g)
             give!(A, i′, g)
@@ -721,7 +721,7 @@ function alloc_gmt18(V::Additive)
     R = order(V)
 
     # Allocate all items worth 2/3 or more using a maximum matching approach
-    R = chain(R, reduce(profile(R), 2/3, greedy=false))
+    R = chain(R, reduce(R.profile, 2/3, greedy=false))
 
     # Finds an assignment of the two least valuable items, that are still valued
     # at more than 1/3 each and there are more than n items that some agent
@@ -737,8 +737,8 @@ function alloc_gmt18(V::Additive)
         return findfirst(i -> value(V, i, B) ≥ 2/3, N) => B
     end
 
-    R = chain(R, reduce(profile(R), findtwoitembundles))
-    V = profile(R)
+    R = chain(R, reduce(R.profile, findtwoitembundles))
+    V = R.profile
 
     while na(V) > 1
         N, M = agents(V), items(V)
@@ -756,7 +756,7 @@ function alloc_gmt18(V::Additive)
         end
 
         R = chain(R, reduce(V, findfirst(i -> value(V, i, B) ≥ 2/3, N) => B))
-        V = profile(R)
+        V = R.profile
     end
 
     A = Allocation(na(V), ni(V))

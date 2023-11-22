@@ -39,6 +39,21 @@ this case, `alloc_half_mms`).
     except that an "et al." character is not added when there are five or more
     authors.
 
+**Accessors:** Using accessors such as `attr(obj)` rather than `obj.attr` comes
+with the cost of claiming names in the global namespace, so they are mainly used
+when they provide some value, and not as a general convention. Such added value
+may be, for example, that it makes the interface clearer or more consistent, or
+that it provides some modest level of encapsulation. In many cases, it may also
+be worthwhile to use a function to access elements of an internal collection
+(such as `foo(X, i)` rather than `X.foo[i]`).
+
+If, however, an object is essentially a named tuple, attributes will tend to be
+used without accessors. This applies to thin wrapper (such as `Conflicts`, for
+example), where the inner object is simply accessed directly.
+
+Note that some such objects used accessors in earlier versions. These accessors
+are still available, but their use is deprecated. (Run `julia` with
+`--depwarn=true` to get the appropriate warnings.)
 
 ## Basic types
 

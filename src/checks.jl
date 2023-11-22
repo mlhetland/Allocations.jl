@@ -127,7 +127,7 @@ Check whether the allocation `A` respects the item conflicts `C`.
 """
 function check(V, A, C::Conflicts)
 
-    G = graph(C)
+    G = C.graph
 
     for e in edges(G)
         isempty(owners(A, src(e)) ∩ owners(A, dst(e))) || return false

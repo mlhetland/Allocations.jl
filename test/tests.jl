@@ -137,7 +137,7 @@ function runtests(; slow_tests = true)
 
         @test C isa Conflicts
 
-        @test graph(C) isa AbstractGraph
+        @test C.graph isa AbstractGraph
 
     end
 
@@ -673,7 +673,7 @@ end
 
             # The allocation must not break the cardinality constraints
             for i in agents(V), c in C
-                @test sum(owner(A, g) == i for g in c) ≤ threshold(c)
+                @test sum(owner(A, g) == i for g in c) ≤ c.threshold
             end
 
             for i in agents(V)

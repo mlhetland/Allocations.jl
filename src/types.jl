@@ -88,12 +88,8 @@ Construct an empty allocation with zero agents and items.
 Allocation() = Allocation(0, 0)
 
 
-bundle(A) = A.bundle
-owners(A) = A.owners
-
-
-na(A::Allocation) = length(bundle(A))
-ni(A::Allocation) = length(owners(A))
+na(A::Allocation) = length(A.bundle)
+ni(A::Allocation) = length(A.owners)
 
 
 ## Allocation printing
@@ -168,7 +164,7 @@ show(io::IO, m::MIME"text/plain", A::Allocation) = show(io, m, AllocShowWrap(A))
 The set of items allocated to agent `i` in the allocation `A`. The returned
 `Set` should be treated as read-only.
 """
-bundle(A, i) = bundle(A)[i]
+bundle(A, i) = A.bundle[i]
 
 
 """
@@ -177,7 +173,7 @@ bundle(A, i) = bundle(A)[i]
 The set of agents to which item `g` has been allocated in the allocation `A`.
 The returned `Set` should be treated as read-only.
 """
-owners(A, g) = owners(A)[g]
+owners(A, g) = A.owners[g]
 
 
 """
@@ -523,7 +519,7 @@ abstract type Constraint end
 
 One of the categories in a `Counts` constraint, from which each agent can hold
 at most a given number of items. The category supports iteration (over its
-members), and the threshold is available through the `threshold` accessor.
+members), and the threshold is available through the `threshold` attribute.
 """
 mutable struct Category
     members::Set{Int}
@@ -533,15 +529,6 @@ end
 
 iterate(c::Category, args...) = iterate(c.members, args...)
 length(c::Category) = length(c.members)
-
-
-"""
-    threshold(c::Category)
-
-The maximum number of items any agent can receive from the given category, as
-part of a `Counts` constraint.
-"""
-threshold(c::Category) = c.threshold
 
 
 """
@@ -636,26 +623,18 @@ items conflict, and thus cannot be allocated to the same agent. The
 constraints are represented as a *conflict graph* (`Graphs.AbstractGraph`), with
 items as nodes, and edges representing conflicts. The `Conflicts` type is just a
 wrapper for dispatch purposes, with the underlying graph available through the
-`graph` accessor.
+`graph` attribute.
 """
 struct Conflicts{T <: AbstractGraph} <: Constraint
     graph::T
 end
 
 
-"""
-    graph(C::Conflicts)
-
-Return the conflict graph wrapped by a `Conflicts` object.
-"""
-graph(C::Conflicts) = C.graph
-
-
 ## Reductions ################################################################
 
 
 """
-    mutable struct Reduction{S, T, U, V}
+    mutable struct Reduction{S, T, I, G}
 
 A reduction from one instance of a fair allocation problem to another. Contains
 information about the profiles in the reduced instance, through an object of
@@ -673,11 +652,12 @@ item identifier in the original instance of, respectively, agent `i` and item
 The reduction also contains a function that can convert an allocation in the
 reduced instance to one in the original instance.
 
-The default constructor is `Reduction(V, C, λi, λg, transform::Function)`.
+The default constructor is `Reduction(V, C, λi, λg, transform::Function)`, for a
+profile `V` and constraint `C`.
 """
 mutable struct Reduction{S, T, I, G}
-    V::S
-    C::T
+    profile::S
+    constraint::T
     λi::I
     λg::G
     transform::Function
@@ -715,22 +695,7 @@ Reduction(V) = Reduction(V, nothing)
 A simplified constructor to create a copy of a reduction with constraints
 attached.
 """
-Reduction(R::Reduction, C) = Reduction(R.V, C, R.λi, R.λg, R.transform)
-
-"""
-    profile(R::Reduction)
-
-Returns the valuation profile for the reduced instance.
-"""
-profile(R::Reduction) = R.V
-
-
-"""
-    constraint(R::Reduction)
-
-Returns the constraint object for the reduced instance
-"""
-constraint(R::Reduction) = R.C
+Reduction(R::Reduction, C) = Reduction(R.profile, C, R.λi, R.λg, R.transform)
 
 
 """
@@ -770,9 +735,9 @@ composition of the reductions).
 """
 function chain(R₁::Reduction, R₂::Reduction)
     return Reduction(
-            R₂.V, R₂.C,
-            [agent(R₁, agent(R₂, i)) for i in agents(R₂.V)],
-            [item(R₁, item(R₂, g)) for g in items(R₂.V)],
+            R₂.profile, R₂.constraint,
+            [agent(R₁, agent(R₂, i)) for i in agents(R₂.profile)],
+            [item(R₁, item(R₂, g)) for g in items(R₂.profile)],
             (A) -> transform(R₁, transform(R₂, A))
         )
 end

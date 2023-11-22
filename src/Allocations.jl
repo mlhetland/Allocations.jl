@@ -16,6 +16,7 @@ include("measures.jl")
 include("mip.jl")
 include("reductions.jl")
 include("algorithms.jl")
+include("deprecated.jl")
 include("precompile.jl")
 
 end # module

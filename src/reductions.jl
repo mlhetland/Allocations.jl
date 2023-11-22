@@ -150,7 +150,7 @@ function reduce(V::Additive, F::Function...)
         if res != nothing
             i, B = res
             R₁ = reduce(V, i => B)
-            R₂ = reduce(profile(R₁), F...)
+            R₂ = reduce(R₁.profile, F...)
             return chain(R₁, R₂)
         end
     end
@@ -200,7 +200,7 @@ function reduce(V::Additive, α::Real; greedy::Bool=true)
     end
 
     R₁ = reduce(V, allocations...)
-    R₂ = reduce(profile(R₁), α, greedy=false)
+    R₂ = reduce(R₁.profile, α, greedy=false)
     return chain(R₁, R₂)
 end
 
@@ -234,7 +234,7 @@ function reduce(V::Additive, C::Counts{OrderedCategory}, α::Real)
 
             R = reduce(V, C, i, bundle)
 
-            V, C = profile(R), constraint(R)
+            V, C = R.profile, R.constraint
             # Recursive application, as the removed items may cause items worth
             # less than α to be worth α or more after a new normalization.
             R′ = reduce(V, C, α)
@@ -261,7 +261,7 @@ function reduce(V::Profile, α::Real)
     for i in N, g in M
         if value(V, i, g) ≥ α
             R = reduce(V, i, [g])
-            V = profile(R)
+            V = R.profile
 
             # Recursive application on the new instance
             R′ = reduce(V, α)
@@ -330,7 +330,7 @@ function order(V::Additive, C::Counts)
             Vo[i,m:m+length(c)-1] = sort([value(V, i, g) for g in c], rev=true)
         end
 
-        push!(Co, OrderedCategory(m, length(c), threshold(c)))
+        push!(Co, OrderedCategory(m, length(c), c.threshold))
         m += length(c)
     end
 
