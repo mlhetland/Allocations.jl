@@ -630,6 +630,43 @@ struct Conflicts{T <: AbstractGraph} <: Constraint
 end
 
 
+"""
+    struct Forbidden{T} <: Constraint
+
+An exclusion constraint, which specifies objects that agents are forbidden from
+receiving. These object sets are simply specified by an `Allocation` (or an
+`Allocation`-like object), provided to the constructor.
+"""
+struct Forbidden{T} <: Constraint
+    alloc::T
+end
+
+
+"""
+    struct Permitted{T} <: Constraint
+
+A constraint that specifies objects that agents are permitted to receive,
+implicitly forbidding all others (cf. [`Forbidden`](@ref)). These object sets
+are simply specified by an `Allocation` (or an `Allocation`-like object),
+provided to the constructor.
+"""
+struct Permitted{T} <: Constraint
+    alloc::T
+end
+
+
+"""
+    struct Required{T} <: Constraint
+
+An inclusion constraint, which specifies objects that agents are required to
+receive. These object sets are simply specified by an `Allocation` (or an
+`Allocation`-like object), provided to the constructor.
+"""
+struct Required{T} <: Constraint
+    alloc::T
+end
+
+
 ## Reductions ################################################################
 
 

@@ -10,6 +10,7 @@ using Allocations: bipartite_matching
 # For Counts test:
 using Allocations: Category
 
+
 function runtests(; slow_tests = true)
 
     seed!(4252170447285279131)
@@ -138,6 +139,23 @@ function runtests(; slow_tests = true)
         @test C isa Conflicts
 
         @test C.graph isa AbstractGraph
+
+    end
+
+    @testset "Inclusion/Exclusion" begin
+
+        A = Allocation()
+
+        C₁ = Forbidden(A)
+        C₂ = Permitted(A)
+        C₃ = Required(A)
+
+        @test C₁ isa Forbidden
+        @test C₁.alloc === A
+        @test C₂ isa Permitted
+        @test C₂.alloc === A
+        @test C₃ isa Required
+        @test C₃.alloc === A
 
     end
 
@@ -283,6 +301,30 @@ end
 
         @test res.model isa JuMP.Model
         @test resc.model isa JuMP.Model
+
+    end
+
+    @testset "MIP with inclusion/exclusion" begin
+
+        V = Additive([1 1 2; 1 2 1])
+
+        # Somewhat arbitrarily using MNW
+
+        A₀ = Allocation(V)
+        give!(A₀, 1, 1)
+        A = alloc_mnw(V, Required(A₀)).alloc
+        @test 1 in bundle(A, 1)
+
+        A₀ = Allocation(V)
+        give!(A₀, 1, 3)
+        A = alloc_mnw(V, Forbidden(A₀)).alloc
+        @test !(3 in bundle(A, 1))
+
+        A₀ = Allocation(V)
+        give!(A₀, 1, [1, 2])
+        give!(A₀, 2, [1, 2, 3])
+        A = alloc_mnw(V, Permitted(A₀)).alloc
+        @test !(3 in bundle(A, 1))
 
     end
 

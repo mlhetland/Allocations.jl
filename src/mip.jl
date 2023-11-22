@@ -261,6 +261,40 @@ enforce(C::Conflicts) = function(ctx)
 end
 
 
+# Internal. Used by `enforce` for `Required`, `Forbidden` and `Permitted`.
+function fix_match_vars(ctx, C, val=1, which=bundle)
+
+    A₀, A, model = C.alloc, ctx.alloc_var, ctx.model
+
+    for i in agents(A₀), g in which(A₀, i)
+        fix(A[i, g], val)
+    end
+
+    return ctx
+
+end
+
+
+# Enforce inclusion constraints on the JuMP model.
+enforce(C::Required) = function(ctx)
+    fix_match_vars(ctx, C)
+end
+
+
+# Enforce exclusion constraints on the JuMP model.
+enforce(C::Forbidden) = function(ctx)
+    fix_match_vars(ctx, C, 0)
+end
+
+
+# Enforce permission constraints (i.e., exclusion constraints with the
+# complement) on the JuMP model.
+enforce(C::Permitted) = function(ctx)
+    which(A, i) = setdiff(items(A), bundle(A, i))
+    fix_match_vars(ctx, C ,0, which)
+end
+
+
 # Enforce envy-freeness up to a single object (EF1) on the JuMP model.
 function enforce_ef1(ctx)
 
