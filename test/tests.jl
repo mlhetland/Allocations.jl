@@ -50,9 +50,30 @@ function runtests(; slow_tests = true)
             @test summary(A) == "Allocation with 3 agents and 5 items, " *
                                 "1 unallocated"
 
+            A₂ = Allocation(A)
+            @test A == A₂
+            @test A !== A₂
+
+            A₃ = copy(A)
+            @test A == A₃
+            @test A !== A₃
+
+            deny!(A₂, 2, 3)
+            @test A != A₂
+            @test A₂ != A₃
+
+            deny!(A₃, 2, 3)
+            @test A₂ == A₃
+
             deny!(A, 2, 3)
+            @test A == A₂
 
             @test isempty(bundle(A, 2))
+
+            @test length(A) == length(collect(A)) == 3
+
+            @test !isempty(A)
+            @test isempty(Allocation())
 
             for g = 1:m
                 give!(A, 1, g)

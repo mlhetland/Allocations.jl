@@ -1,6 +1,8 @@
 using Documenter
 using Allocations
 
+DocMeta.setdocmeta!(Allocations, :DocTestSetup, :(using Allocations); recursive=true)
+
 makedocs(
     sitename = "Allocations",
     format = Documenter.HTML(

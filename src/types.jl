@@ -1,5 +1,5 @@
-import Base: firstindex, getindex, in, iterate, lastindex, length, show,
-    summary, show_vector
+import Base: ==, copy, firstindex, getindex, in, isempty, iterate, lastindex,
+             length, show, summary, show_vector
 
 using DataStructures
 
@@ -62,6 +62,10 @@ and items are represented as `Int`s, and bundles as `Set`s of `Int`s. The
 `Allocation` also maintains an inverse mapping, from items `g` to their set of
 owners, `owners(A, g)`. To keep these in sync, the bundles should be modified
 using `give!` and `deny!`, rather than altering the bundle sets directly.
+
+`Allocation`s support iteration (along with `length` and `isempty`), which acts
+as for a map from agents to bundles, i.e., it generates a series of pairs `i =>
+S`, where `i` is an agent, and `S` is the corresponding bundle.
 """
 struct Allocation
     # (Might make more sense to use `bundles` here, but to be consistent, we'd
@@ -71,13 +75,109 @@ struct Allocation
 end
 
 
-"""
-    Allocation(n::Int, m::Int)
+==(A::Allocation, B::Allocation) = A.bundle == B.bundle && A.owners == B.owners
 
-Construct an empty allocation with `n` agents and `m` items.
+
+# Seen as a map from agents to bundles
+length(A::Allocation) = na(A)
+iterate(A::Allocation, i=1) = i <= na(A) ? (i => bundle(A, i), i + 1) : nothing
+isempty(A::Allocation) = na(A) == 0
+
+
 """
-Allocation(n::Int, m::Int) =
-    Allocation([Set{Int}() for i = 1:n], [Set{Int}() for i = 1:m])
+    copy(A::Allocation)
+
+Creates a new allocation that has the same agents, items and bundles as `A`.
+"""
+copy(A::Allocation) = Allocation(A)
+
+
+"""
+    Allocation(n::Int, m::Int[, bundles])
+    Allocation(n::Int, m::Int, bundles::Pair...)
+
+Construct an empty allocation with `n` agents and `m` items. If the `bundles`
+argument is provided, it should be iterable, with length-2 elements, such as
+`Pair`s or 2-tuples `(i, x)` or agents `i` and bundles – or individual items –
+`x` they should receive. Agents may occur multiple times, and will then receive
+all the bundles or items specified. These bundle assignments need not form a
+partition of the item set.
+
+# Examples
+
+```jldoctest
+julia> Allocation(5, 10, [1 => [1, 2, 3]])
+Allocation with 5 agents and 10 items, 7 unallocated:
+  1 => {1, 2, 3}
+  2 => {}
+  3 => {}
+  4 => {}
+  5 => {}
+```
+
+The bundles assignment pairs may also be provided as individual `Pair`s:
+
+```
+julia> Allocation(3, 3, 1 => [2], 2 => [3, 1], 3 => 2, 3 => 3)
+Allocation with 3 agents and 3 items:
+  1 => {2}
+  2 => {1, 3}
+  3 => {2, 3}
+```
+"""
+function Allocation(n::Int, m::Int, bundles=[])
+    A = Allocation([Set{Int}() for i = 1:n], [Set{Int}() for i = 1:m])
+    for (i, S) in bundles
+        give!(A, i, S)
+    end
+    return A
+end
+Allocation(n::Int, m::Int, bundles::Pair...) = Allocation(n, m, bundles)
+
+
+"""
+    Allocation(bundles)
+    Allocation(bundles::Pair...)
+
+Equivalent to `Allocation(n, m, bundles)`, where `n` and `m` are determined from
+the `bundles` argument.
+
+# Examples
+
+```jldoctest
+julia> Allocation([1 => [1, 2, 3]])
+Allocation with 1 agent and 3 items:
+  1 => {1, 2, 3}
+
+julia> Allocation(1 => [2], 2 => [3, 1], 3 => 2, 3 => 3)
+Allocation with 3 agents and 3 items:
+  1 => {2}
+  2 => {1, 3}
+  3 => {2, 3}
+```
+"""
+function Allocation(bundles)
+    bs = collect(bundles)
+    n, m = 0, 0
+    for (i, S) in bs
+        n = max(n, i)
+        m = maximum(S, init=m)
+    end
+    Allocation(n, m, bs)
+end
+Allocation(bundles::Pair...) = Allocation(bundles)
+
+
+"""
+    Allocation(A::Allocation)
+
+Construct a new allocation that has the same agents, items and bundles as `A`.
+Because an `Allocation` is an iterable collection of agent–bundle pairs, this is
+equivalent to the more general `Allocation(bundles)` constructor, just slightly
+more efficient, because the number of agents and items are retrieved directly
+from `A`.
+"""
+Allocation(A::Allocation) = Allocation(na(A), ni(A), A)
 
 
 """
@@ -289,12 +389,28 @@ abstract type Profile end
 
 
 """
-    Allocation(V::Profile)
+    Allocation(V::Profile, args...)
 
-Construct an empty allocation with a number of agents and items equal to that of
-the instance (i.e., profile) `V`.
+Construct an allocation with a number of agents and items equal to that of the
+instance (i.e., profile) `V`. Additional arguments may be provided as for the
+constructor with explicit `n` and `m` arguments.
+
+
+# Examples
+
+```jldoctest
+julia> V = Profile([1 2; 2 1])
+Additive{Matrix{Int64}} with 2 agents and 2 items:
+ 1  2
+ 2  1
+
+julia> A = Allocation(V, 1 => 2)
+Allocation with 2 agents and 2 items, 1 unallocated:
+  1 => {2}
+  2 => {}
+```
 """
-Allocation(V::Profile) = Allocation(na(V), ni(V))
+Allocation(V::Profile, args...) = Allocation(na(V), ni(V), args...)
 
 
 """
