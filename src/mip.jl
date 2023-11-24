@@ -5,15 +5,18 @@
 # A shared context for the MIP pipeline. The JuMP variable representing the
 # allocation (as an n-by-m matrix) is kept in alloc_var. The res field should be
 # a named tuple of any extra data to be splatted in at the end of the result.
+# The objectives field is only used with lexicographic optimization, where
+# solve_mip calls lex_optimize!.
 mutable struct MIPContext{V <: Additive, M, A, S}
     profile::V
     alloc_var::A
     model::M
     solver::S
+    objectives::Vector{Any}
     alloc::Union{Allocation, Nothing}
     res::NamedTuple
 end
-MIPContext(v, a, m, s) = MIPContext(v, a, m, s, nothing, (;))
+MIPContext(v, a, m, s) = MIPContext(v, a, m, s, [], nothing, (;))
 
 
 # Internal MIP-building functions
@@ -95,7 +98,12 @@ init_mip(V::Matrix, solver; kwds...) = init_mip(Additive(V), solver; kwds...)
 # ϵ: https://www.gurobi.com/documentation/9.1/refman/intfeastol.html
 function solve_mip(ctx; ϵ=1e-5, check=check_partition)
 
-    optimize!(ctx.model)
+    if isempty(ctx.objectives)
+        optimize!(ctx.model)
+    else
+        # Ignoring the returned constraints -- not doing any cleanup
+        lex_optimize!(ctx.model, ctx.objectives)
+    end
 
     @assert termination_status(ctx.model) in conf.MIP_SUCCESS
 
@@ -156,12 +164,11 @@ achieve_mnw(mnw_warn) = function(ctx)
 
     for i in N, k = 1:2:v_max
         @constraint(model, W[i] <=
-                log(k) + (log(k + 1) - log(k)) *
-                (sum(A[i, g] * value(V, i, g) for g = M) - k))
+                log(k) + (log(k + 1) - log(k)) * (value(V, i, A) - k))
     end
 
     for i in N
-        @constraint(model, sum(A[i, g] * value(V, i, g) for g in M) >= 1)
+        @constraint(model, value(V, i, A) >= 1)
     end
 
     return ctx
@@ -180,12 +187,30 @@ achieve_mm(cutoff=nothing) = function(ctx)
     @variable(model, v_min)
 
     for i in N
-        @constraint(model, v_min <= sum(A[i, g] * value(V, i, g) for g in M))
+        @constraint(model, v_min <= value(V, i, A))
     end
 
     isnothing(cutoff) || @constraint(model, v_min <= cutoff)
 
     @objective(model, Max, v_min)
+
+    return ctx
+
+end
+
+
+# Set up objective and constraints to make sure the JuMP model produces an
+# lexicographic maximin/leximin allocation.
+function achieve_lmm(ctx)
+
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
+    N = agents(V)
+
+    # Negated, because we're using a leximax formulation:
+    funcs = [-value(V, i, A) for i in N]
+    objectives = leximax_os06_1!(model, funcs)
+
+    ctx.objectives = [(MOI.MIN_SENSE, obj) for obj in objectives]
 
     return ctx
 
@@ -211,7 +236,7 @@ achieve_ggi(wt) = function(ctx)
 
     for i in N, j in N
         @constraint(model,
-            r[j] - b[i, j] <= sum(A[i, g] * value(V, i, g) for g in M))
+            r[j] - b[i, j] <= value(V, i, A))
     end
 
     return ctx
@@ -322,7 +347,7 @@ function enforce_ef1(ctx)
         i == j && continue
 
         # Agent i's value for her own bundle
-        vii = sum(value(V, i, g) * A[i, g] for g in M)
+        vii = value(V, i, A)
 
         # Agent i's value for j's bundle, without dropped item
         vij1 = sum(value(V, i, g) * (A[j, g] - D[i, j, g]) for g in M)
@@ -349,7 +374,7 @@ function enforce_efx(ctx)
         i == j && continue
 
         # Agent i's value for her own bundle
-        vii = sum(value(V, i, g) * A[i, g] for g in M)
+        vii = value(V, i, A)
 
         # Value large enough to skip the constraint:
         huge = value(V, i, M)
@@ -530,7 +555,7 @@ function alloc_mnw_ef1(V, C; mnw_warn=true, solver=conf.MIP_SOLVER, kwds...)
 end
 
 
-# Extract the allocation and the maximin value at the end of the pipeline.
+# Extract the allocation, model and maximin value at the end of the pipeline.
 function mm_result(ctx)
     return (alloc=ctx.alloc,
             model=ctx.model,
@@ -558,6 +583,31 @@ function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER, kwds...)
     enforce(C) |>
     solve_mip |>
     mm_result
+
+end
+
+
+"""
+    alloc_lmm(V[, C]; solver=conf.MIP_SOLVER, kwds...)
+
+Create a lexicographic maximin (leximin) `Allocation`, i.e., one where the
+lowest bundle value is maximized, and subject to that, the second lowest is
+maximized, etc. The return value is a named tuple with fields `alloc` (the
+`Allocation`) and `model` (the JuMP model used in the computation).
+
+The method used for leximin optimization is that of Ogryczak and Śliwiński (["On
+Direct Methods for Lexicographic Min-Max
+Optimization"](https://doi.org/10.1007/11751595_85), 2006).
+
+$MIP_LIMIT_DOC
+"""
+function alloc_lmm(V, C=nothing; solver=conf.MIP_SOLVER, kwds...)
+
+    init_mip(V, solver; kwds...) |>
+    achieve_lmm |>
+    enforce(C) |>
+    solve_mip |>
+    alloc_result
 
 end
 

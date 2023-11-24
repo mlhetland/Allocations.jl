@@ -434,6 +434,18 @@ value(V::Additive, i, g::Int) = V.values[i, g]
 value(V::Additive, i, A::Allocation) = bundle_value(V, i, A)
 
 
+"""
+    value(V::Additive, i, A::T) where {T <: AbstractMatrix}
+
+Similar to the case where `A` is an `Allocation`, except the allocation is
+expressed as a binary matrix, where `A[i, g]` indicates whether `i` has item `g`
+(`1`) or not (`0`). May also be used, e.g., with a matrix of variable
+references, when constructing MIPs with JuMP.
+"""
+value(V::Additive, i, A::T) where {T <: AbstractMatrix} =
+    sum(A[i, g] * value(V, i, g) for g in items(V))
+
+
 # The bundle value is "lifted" from item values by addition.
 value(V::Additive, i, S) =
     isempty(S) ? zero(eltype(V.values)) : sum(value(V, i, g) for g in S)

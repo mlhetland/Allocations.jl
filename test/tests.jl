@@ -4,8 +4,8 @@ using Graphs
 using Random: seed!
 using Test
 
-# For matching test:
-using Allocations: bipartite_matching
+# For utilities tests:
+using Allocations: bipartite_matching, lex_optimize!
 
 # For Counts test:
 using Allocations: Category
@@ -142,7 +142,7 @@ function runtests(; slow_tests = true)
 
     end
 
-    @testset "Inclusion/Exclusion" begin
+    @testset "Inclusion/exclusion" begin
 
         A = Allocation()
 
@@ -181,6 +181,32 @@ end
         @test all(sum(M, dims=1) .<= 1)
         @test all(sum(M, dims=2) .<= 1)
         @test sum(M) == 5
+
+    end
+
+    @testset "Lexicographic optimization" begin
+
+        model = JuMP.Model(Allocations.conf.MIP_SOLVER)
+
+        JuMP.@variable(model, x >= 0)
+        JuMP.@variable(model, y >= 0)
+
+        objectives = [(JuMP.MOI.MIN_SENSE, -x), (JuMP.MOI.MAX_SENSE, y)]
+
+        JuMP.@constraint(model, x + y <= 10)
+        JuMP.@constraint(model, x <= 3)
+
+        constraints = lex_optimize!(model, objectives, ϵ=0)
+
+        @test JuMP.termination_status(model) in Allocations.conf.MIP_SUCCESS
+
+        @test JuMP.value(x) ≈ 3
+        @test JuMP.value(y) ≈ 7
+
+        # Cleanup
+        for con in constraints
+            JuMP.delete(model, con)
+        end
 
     end
 
@@ -411,6 +437,64 @@ end
         @test res.model isa JuMP.Model
         @test A isa Allocation
         @test res.mm == minimum(value(V, i, A) for i in N)
+
+    end
+
+    @testset "Lexicographic" begin
+
+        # Sanity check of lexicographic optimization, using internal functions.
+
+        V = Additive([1 0; 1 1])
+
+        ctx = Allocations.init_mip(V, Allocations.conf.MIP_SOLVER)
+
+        A = ctx.alloc_var
+
+        ctx.objectives = [
+            (JuMP.MOI.MAX_SENSE, value(V, 1, A))
+            (JuMP.MOI.MAX_SENSE, value(V, 2, A))
+        ]
+
+        ctx = Allocations.solve_mip(ctx)
+
+        @test string(ctx.alloc) == "[{1}, {2}]"
+
+    end
+
+    @testset "Leximin" begin
+
+        for (case, expected, values) in [
+
+                ([2 1; 1 2]         , "[{1}, {2}]"       , [2, 2])
+                ([1 3; 1 2]         , "[{2}, {1}]"       , [1, 3])
+                ([4 3; 3 2]         , "[{2}, {1}]"       , [3, 3])
+                ([2 2 2 2; 1 1 1 1] , nothing            , [2, 4])
+                ([3 3 3 3; 1 1 1 1] , nothing            , [3, 3])
+                ([2 1 2 1; 1 2 1 2] , "[{1, 3}, {2, 4}]" , [4, 4])
+                ([3 4 2 1; 5 5 1 1] , "[{2, 3}, {1, 4}]" , [6, 6])
+
+                # From Feige, Sapir & Tauber, "A Tight Negative Example for MMS
+                # Fair Allocations", WINE'22:
+                ([1 16 23 26 4 10 12 19 9
+                  1 16 22 26 4  9 13 20 9
+                  1 15 23 25 4 10 13 20 9] , nothing     , [39, 40, 43])
+
+            ]
+
+            V = Profile(case)
+            N = agents(V)
+
+            res = alloc_lmm(V)
+            A = res.alloc
+
+            @test res.model isa JuMP.Model
+            @test A isa Allocation
+
+            isnothing(expected) || @test string(A) == expected
+
+            @test sort([value(V, i, A) for i in N]) == values
+
+        end
 
     end
 

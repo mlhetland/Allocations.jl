@@ -2,7 +2,8 @@ module Allocations
 
 import JuMP
 using JuMP: Model, optimizer_with_attributes, objective_value, @variable,
-            @objective, @constraint, fix, optimize!, termination_status, MOI
+            @objective, @constraint, delete, fix, optimize!, termination_status,
+            MOI
 using Graphs
 using HiGHS
 using Random

@@ -25,8 +25,7 @@ solver directly to the appropriate allocation functions.
 MIP_SUCCESS::Any
 ```
 
-Container of acceptable MIP statuses. By default, has the value
-`[MOI.OPTIMAL]`.
+Container of acceptable MIP statuses. By default, has the value `[MOI.OPTIMAL]`.
 """
 const conf = Conf(nothing, nothing)
 
