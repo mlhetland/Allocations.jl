@@ -277,6 +277,7 @@ end
 
 """
     order(V::Additive)
+
 Create an ordered instance for the given weights. The weights are reordered for
 each agent such that item 1 is worth the most and item m is worth the least.
 Returns new additive valuations and a function to convert an allocation in the
@@ -290,6 +291,7 @@ order(V::Additive) = Reduction(
 
 """
     revert(V::Additive, A)
+
 Convert an allocation for the ordered instance to one for the original instance.
 """
 function revert(V::Additive, A)
