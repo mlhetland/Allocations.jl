@@ -251,6 +251,10 @@ end
 enforce(C::Nothing) = identity
 
 
+# Enforce a tuple of constraints.
+enforce(C::Constraints) = ctx -> reduce(|>, map(enforce, C.parts), init=ctx)
+
+
 # Enforce cardinality constraints on the JuMP model.
 enforce(C::Counts) = function(ctx)
 

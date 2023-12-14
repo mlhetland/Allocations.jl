@@ -1,3 +1,7 @@
+import Base: reduce
+# Temporary (cf. https://github.com/mlhetland/Allocations.jl-private/issues/66)
+
+
 """
     reduceutil(V::Profile, assignments::Pair...)
 

@@ -375,6 +375,18 @@ end
 
     end
 
+    @testset "MIP with multiple constraints" begin
+
+        V = Profile([1 2 3; 3 1 1])
+        F = Forbidden(Allocation(V, 1 => 3))
+        R = Required(Allocation(V, 2 => 2))
+        C = Constraints(F, R)
+
+        @test string(alloc_mnw(V).alloc) == "[{2, 3}, {1}]"
+        @test string(alloc_mnw(V, C).alloc) == "[{1}, {2, 3}]"
+
+    end
+
     @testset "EF1 with conflicts" begin
 
         nᵢ = 6

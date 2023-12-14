@@ -103,6 +103,7 @@ argument is provided, it should be iterable, with length-2 elements, such as
 all the bundles or items specified. These bundle assignments need not form a
 partition of the item set.
 
+
 # Examples
 
 ```jldoctest
@@ -141,6 +142,7 @@ Allocation(n::Int, m::Int, bundles::Pair...) = Allocation(n, m, bundles)
 
 Equivalent to `Allocation(n, m, bundles)`, where `n` and `m` are determined from
 the `bundles` argument.
+
 
 # Examples
 
@@ -640,6 +642,22 @@ allocation problem is assumed to consist of a `Profile` object and at most one
 solutions.
 """
 abstract type Constraint end
+
+
+"""
+    struct Constraints{T <: Tuple{Vararg{Constraint}}} <: Constraint
+
+A thin wrapper around a tuple of constraints, acting as a single, combined
+constraint. May be constructed with a single tuple argument, or with zero or
+more `Constraint` objects. Its meaning is the conjunction of its constituent
+parts. That is, an allocation that is to satisfy `Constraints(A, B)` would need
+to satisfy both `A` and `B`. The wrapped tuple is available via the `parts`
+attribute.
+"""
+struct Constraints{T <: Tuple{Vararg{Constraint}}} <: Constraint
+    parts::T
+end
+Constraints(args::Constraint...) = Constraints(args)
 
 
 """

@@ -3,6 +3,7 @@ export
     Allocation,
     Conflicts,
     Constraint,
+    Constraints,
     Counts,
     Forbidden,
     OrderedCategory,
