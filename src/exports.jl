@@ -1,6 +1,7 @@
 export
     Additive,
     Allocation,
+    Asymmetric,
     Conflicts,
     Constraint,
     Constraints,
@@ -12,6 +13,8 @@ export
     Reduction,
     Required,
     Submodular,
+    Symmetry,
+    Symmetric,
     agents,
     alloc_bb18_3,
     alloc_bkv18_1,

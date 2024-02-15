@@ -373,6 +373,11 @@ end
         A = alloc_mnw(V, Permitted(A₀)).alloc
         @test !(3 in bundle(A, 1))
 
+        # Test that MMS doesn't work, because of asymmetry:
+        @test_throws MethodError alloc_mms(V, Required(A₀))
+        @test_throws MethodError alloc_mms(V, Forbidden(A₀))
+        @test_throws MethodError alloc_mms(V, Permitted(A₀))
+
     end
 
     @testset "MIP with multiple constraints" begin

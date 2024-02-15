@@ -51,6 +51,59 @@ function show_agents_and_items(io::IO, X)
 end
 
 
+## Traits ####################################################################
+
+# Traits are implemented manually, using the [Tim Holy Traits Trick][1]. In
+# particular, a "constructor" for the abstract supertype is used as the trait
+# function. When adding a trait to an abstract type or a type with a type
+# parameter, make sure to use the `<:` operator. E.g., for `SomeType{T}`, use:
+#
+#   SomeTrait(::Type) = SomeTraitDefault()
+#   SomeTrait(::Type{<:SomeType}) = SomeTraitValue()
+#
+# The return value is generally added at the end of the original argument list
+# when dispatching on the trait. I.e.:
+#
+#   foo(x) = foo(x, SomeTrait(x))
+#
+# A version taking an instance should also be defined, as in [base Julia][2].
+#
+#   SomeTrait(instance) = SomeTrait(typeof(instance))
+#
+# [1]: https://github.com/JuliaLang/julia/issues/2345#issuecomment-54537633
+# [2]: https://github.com/JuliaLang/julia/blob/master/base/traits.jl
+
+
+"""
+    Symmetry(instance)
+    Symmetry(T::Type)
+
+Indicate whether a constraint instance or type is symmetric or asymmetric
+(indicated by a return value of `Symmetric()` or `Asymmetric()`, where
+`Symmetric` and `Asymmetric` are empty concrete subtypes of `Symmetry`). A
+symmetric constraint is one that is invariant under permutation of the agents,
+while an asymmetric constraint is not. That is, an asymmetric constraint is one
+that permits individual variations in the constraints placed on the bundles of
+different agents.
+
+An instance has the same asymmetry as its type, and by default, this is
+`Symmetric()`.
+"""
+abstract type Symmetry end
+struct Symmetric  <: Symmetry end
+struct Asymmetric <: Symmetry end
+Symmetry(::Type) = Symmetric()
+
+
+Symmetry(instance) = Symmetry(typeof(instance)) # XXX
+
+
+# For inserting into docstrings:
+const ASYM_DOC = """
+    This constraint is asymmetric (see [`Symmetry`](@ref)).
+    """
+
+
 ## Allocations ###############################################################
 
 
@@ -376,7 +429,7 @@ end
 
 
 """
-    abstract struct Profile <: Any
+    abstract type Profile <: Any
 
 An abstract type representing an valuation profile. Which functions are used to
 query it depends on the kind of valuation functions it represents. Additive
@@ -782,10 +835,13 @@ end
 An exclusion constraint, which specifies objects that agents are forbidden from
 receiving. These object sets are simply specified by an `Allocation` (or an
 `Allocation`-like object), provided to the constructor.
+
+$ASYM_DOC
 """
 struct Forbidden{T} <: Constraint
     alloc::T
 end
+Symmetry(::Type{<:Forbidden}) = Asymmetric()
 
 
 """
@@ -795,10 +851,13 @@ A constraint that specifies objects that agents are permitted to receive,
 implicitly forbidding all others (cf. [`Forbidden`](@ref)). These object sets
 are simply specified by an `Allocation` (or an `Allocation`-like object),
 provided to the constructor.
+
+$ASYM_DOC
 """
 struct Permitted{T} <: Constraint
     alloc::T
 end
+Symmetry(::Type{<:Permitted}) = Asymmetric()
 
 
 """
@@ -807,10 +866,13 @@ end
 An inclusion constraint, which specifies objects that agents are required to
 receive. These object sets are simply specified by an `Allocation` (or an
 `Allocation`-like object), provided to the constructor.
+
+$ASYM_DOC
 """
 struct Required{T} <: Constraint
     alloc::T
 end
+Symmetry(::Type{<:Required}) = Asymmetric()
 
 
 ## Reductions ################################################################

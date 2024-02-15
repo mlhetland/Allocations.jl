@@ -617,7 +617,7 @@ end
 
 
 """
-    mms(V, i[, C]; solver=conf.MIP_SOLVER, kwds...)
+    mms(V::Additive, i[, C]; solver=conf.MIP_SOLVER, kwds...)
 
 Determine the maximin share of agent `i`, i.e., the bundle value she is
 guaranteed to attain if she partitions the items and the other agents choose
@@ -625,12 +625,14 @@ their bundles. Useful, e.g., as a point of reference when determining the
 empirical approximation ratios of approximate MMS allocation algorithms. Also
 used as a subroutine in `alloc_mms`. The return value is a named tuple with the
 fields `mms` (the maximin share of agent `i`) and `model` (the JuMP model used
-in the computation).
+in the computation). Currently only implemented for symmetric constrants (cf.
+[`Symmetry`](@ref)).
 
 $MIP_LIMIT_DOC
 $MIP_LIMIT_DOC_MMS
 """
-function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER, kwds...)
+mms(V::Additive, i, C=nothing; kwds...) = mms(V, i, C, Symmetry(C); kwds...)
+function mms(V::Additive, i, C, ::Symmetric; solver=conf.MIP_SOLVER, kwds...)
 
     lo = get(kwds, :min_bundle, nothing)
     isnothing(lo) || @assert(allequal(lo))
