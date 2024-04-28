@@ -4,6 +4,10 @@
 CurrentModule = Allocations
 ```
 
+```jldoctest ref
+julia> using Allocations
+```
+
 **Function naming:** Allocation functions that use a straightforward procedure,
 or simply use a solver to enforce some property, are named after that procedure
 or property (such as `alloc_rand` or `alloc_ef1`). For published algorithms, the
@@ -55,7 +59,8 @@ Note that some such objects used accessors in earlier versions. These accessors
 are still available, but their use is deprecated. (Run `julia` with
 `--depwarn=true` to get the appropriate warnings.)
 
-## Basic types
+
+## [Basic types](@id types)
 
 ```@autodocs
 Modules = [Allocations]
@@ -83,7 +88,7 @@ Modules = [Allocations]
 Pages = ["reductions.jl"]
 ```
 
-## MIP-based allocation
+## [MIP-based allocation](@id MIP-based)
 
 ```@autodocs
 Modules = [Allocations]

@@ -10,6 +10,8 @@ using Allocations: bipartite_matching, lex_optimize!
 # For Counts test:
 using Allocations: Category
 
+# For symmetry-related tests:
+using Allocations: Symmetry, Symmetric, Asymmetric, SymmetrizedConstraint
 
 function runtests(; slow_tests = true)
 
@@ -177,6 +179,24 @@ function runtests(; slow_tests = true)
         @test C₂.alloc === A
         @test C₃ isa Required
         @test C₃.alloc === A
+
+    end
+
+    @testset "Symmetry" begin
+
+        for C in [Counts, Conflicts]
+            @test Symmetry(C) == Symmetric()
+        end
+
+        for C in [Forbidden, Permitted, Required]
+            @test Symmetry(C) == Asymmetric()
+        end
+
+        @test Symmetry(Counts([1] => 2))         == Symmetric()
+        @test Symmetry(Conflicts(path_graph(1))) == Symmetric()
+        @test Symmetry(Forbidden(Allocation()))  == Asymmetric()
+        @test Symmetry(Required(Allocation()))   == Asymmetric()
+        @test Symmetry(Permitted(Allocation()))  == Asymmetric()
 
     end
 
@@ -373,11 +393,6 @@ end
         A = alloc_mnw(V, Permitted(A₀)).alloc
         @test !(3 in bundle(A, 1))
 
-        # Test that MMS doesn't work, because of asymmetry:
-        @test_throws MethodError alloc_mms(V, Required(A₀))
-        @test_throws MethodError alloc_mms(V, Forbidden(A₀))
-        @test_throws MethodError alloc_mms(V, Permitted(A₀))
-
     end
 
     @testset "MIP with multiple constraints" begin
@@ -539,6 +554,20 @@ end
     slow_tests &&
     @testset "MMS" begin
 
+        let V = Additive([0; 0;;]), res = alloc_mms(V)
+
+            @test res.alloc isa Allocation
+            @test mms_alpha(V, res.alloc, res.mmss) == res.alpha == Inf
+
+        end
+
+        let V = Additive([0 0; 1 1]), res = alloc_mms(V)
+
+            @test res.alloc isa Allocation
+            @test mms_alpha(V, res.alloc, res.mmss) == res.alpha == 2.0
+
+        end
+
         V = V₀
 
         let res = alloc_mms(V)
@@ -568,6 +597,34 @@ end
         let res = alloc_mms([2 1; 1 2], cutoff=true)
 
             @test res.alpha ≈ 1.0
+
+        end
+
+        let
+
+            V = Additive(ones(2, 3))
+            C = Conflicts(cycle_graph(3))
+
+            @test_throws "INFEASIBLE" alloc_mms(V, C)
+
+            # No exception:
+            @test (alloc_mms(V, C, min_owners=0); true)
+
+            @test_throws "INFEASIBLE" alloc_mms(V, C, min_owners=0,
+                                                mms_kwds=[:min_owners=>1])
+
+        end
+
+        let
+
+            V = Additive(ones(2, 1))
+
+            C = Forbidden(Allocation(2, 1, 1 => 1))
+
+            @test_throws "INFEASIBLE" alloc_mms(V, C)
+
+            # No exception:
+            @test (alloc_mms(V, C, mms_kwds=(min_owners=0,)); true)
 
         end
 
@@ -617,15 +674,6 @@ end
             hib = something(max_bundle, m)
             loo = something(min_owners, 0)
             hio = something(max_owners, n)
-
-            if func == alloc_mms && !(allequal(lob) && allequal(hib))
-                @test_throws AssertionError func(V, C,
-                      min_bundle=min_bundle,
-                      max_bundle=max_bundle,
-                      min_owners=min_owners,
-                      max_owners=max_owners)
-                continue
-            end
 
             A = func(V, C,
                   min_bundle=min_bundle,

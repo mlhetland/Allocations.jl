@@ -62,9 +62,10 @@ end
 #   SomeTrait(::Type{<:SomeType}) = SomeTraitValue()
 #
 # The return value is generally added at the end of the original argument list
-# when dispatching on the trait. I.e.:
+# when dispatching on the trait, using a modified function name (among other
+# things, to avoid ambiguities in dispatch):
 #
-#   foo(x) = foo(x, SomeTrait(x))
+#   foo(x) = _foo(x, SomeTrait(x))
 #
 # A version taking an instance should also be defined, as in [base Julia][2].
 #
@@ -95,7 +96,7 @@ struct Asymmetric <: Symmetry end
 Symmetry(::Type) = Symmetric()
 
 
-Symmetry(instance) = Symmetry(typeof(instance)) # XXX
+Symmetry(instance) = Symmetry(typeof(instance))
 
 
 # For inserting into docstrings:

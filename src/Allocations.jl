@@ -4,9 +4,9 @@ import Base: reduce
 # Temporary (cf. https://github.com/mlhetland/Allocations.jl-private/issues/66)
 
 import JuMP
-using JuMP: Model, optimizer_with_attributes, objective_value, @variable,
-            @objective, @constraint, delete, fix, optimize!, termination_status,
-            MOI
+using JuMP: Model, optimizer_with_attributes, objective_value, objective_sense,
+            @variable, @objective, @constraint, delete, fix, optimize!,
+            termination_status, MOI
 using Graphs
 using HiGHS
 using Random

@@ -19,6 +19,10 @@ end
 MIPContext(v, a, m, s) = MIPContext(v, a, m, s, [], nothing, (;))
 
 
+na(ctx::MIPContext) = na(ctx.profile)
+ni(ctx::MIPContext) = ni(ctx.profile)
+
+
 # Internal MIP-building functions
 
 # The init_mip and solve_mip functions are used to set up a MIP based on a
@@ -72,20 +76,15 @@ function init_mip(V::Additive, solver;
 
 end
 
+
 # See `mms` and `alloc_mms` for special cases.
 const MIP_LIMIT_DOC = """
-    Lower and upper limits on the size of each bundle and the number of owners for
-    each item may be supplied using the keyword arguments `min_bundle`,
-    `max_bundle`, `min_owners` and `max_owners`, the latter two of which default
-    to `1`. If one of these is `nothing`, the limit is simply absent. Otherwise,
-    the argument is broadcast to the appropriate size.
-    """
-
-const MIP_LIMIT_DOC_MMS = """
-    Because of how they interact with the calculation of MMS, the
-    agent-asymmetric limits `min_bundle` and `max_bundle` must be scalars (or,
-    more generally, satisfy `allequal`).
-    """
+Lower and upper limits on the size of each bundle and the number of owners for
+each item may be supplied using the keyword arguments `min_bundle`,
+`max_bundle`, `min_owners` and `max_owners`, the latter two of which default to
+`1`. If one of these is `nothing`, the limit is simply absent. Otherwise, the
+argument is broadcast to the appropriate size.
+"""
 
 
 # Shortcut, so you can use a matrix instead of an Additive valuation profile,
@@ -96,7 +95,7 @@ init_mip(V::Matrix, solver; kwds...) = init_mip(Additive(V), solver; kwds...)
 # Solves the MIP model and constructs the actual Allocation object in the
 # MIPContext.
 # ϵ: https://www.gurobi.com/documentation/9.1/refman/intfeastol.html
-function solve_mip(ctx; ϵ=1e-5, check=check_partition)
+function solve_mip(ctx; ϵ=1e-5, check=nothing)
 
     if isempty(ctx.objectives)
         optimize!(ctx.model)
@@ -105,7 +104,8 @@ function solve_mip(ctx; ϵ=1e-5, check=check_partition)
         lex_optimize!(ctx.model, ctx.objectives)
     end
 
-    @assert termination_status(ctx.model) in conf.MIP_SUCCESS
+    st = termination_status(ctx.model)
+    @assert st in conf.MIP_SUCCESS "solver termination status is $st"
 
     V = ctx.profile
     ctx.alloc = Allocation(na(V), ni(V))
@@ -178,7 +178,7 @@ end
 
 # Set up objective and constraints to make sure the JuMP model produces an
 # egalitarian/maximin allocation.
-achieve_mm(cutoff=nothing) = function(ctx)
+achieve_mm(cutoff=nothing, ignored_agents=[]) = function(ctx)
 
     V, A, model = ctx.profile, ctx.alloc_var, ctx.model
 
@@ -186,13 +186,15 @@ achieve_mm(cutoff=nothing) = function(ctx)
 
     @variable(model, v_min)
 
-    for i in N
+    for i in setdiff(N, ignored_agents)
         @constraint(model, v_min <= value(V, i, A))
     end
 
     isnothing(cutoff) || @constraint(model, v_min <= cutoff)
 
-    @objective(model, Max, v_min)
+    if !issubset(N, ignored_agents)
+        @objective(model, Max, v_min)
+    end
 
     return ctx
 
@@ -246,13 +248,39 @@ end
 
 ## Objective-preserving pipeline steps (enforce_...)
 
+# How `enforce` works depends on whether a constraint is symmetric or not.
+# Symmetric constraints can simply implement `enforce(C)`, and be done with it.
+# Asymmetric constraints, however, should implement `enforce(C, i, j)` instead,
+# which enforces the individual bundle constraint of agent `i` on the bundle of
+# agent `j`. This is used in `alloc_mms`, where the normal behavior (each agent
+# has her own bundle constraint) is used on the allocation itself, but where
+# each agent's constraint us duplicated along with her valuation function when
+# finding here MMS (with `mms`).
+
 
 # Enforce no constraints on the JuMP model.
 enforce(C::Nothing) = identity
 
 
+# Default: Each agent has her own bundle constraint. Symmetric constraints can
+# simply override this implementation directly.
+enforce(C::Constraint) = function(ctx)
+    reduce(|>, (enforce(C, i, i) for i in agents(ctx)), init=ctx)
+end
+
+
+# Need not be implemented directly by any constraint.
+enforce(C, i) = _enforce(C, i, Symmetry(C))
+_enforce(C, i, ::Symmetric) = enforce(C)
+_enforce(C, i, ::Asymmetric) = function(ctx)
+    reduce(|>, (enforce(C, i, j) for j in agents(ctx)), init=ctx)
+end
+
+
 # Enforce a tuple of constraints.
-enforce(C::Constraints) = ctx -> reduce(|>, map(enforce, C.parts), init=ctx)
+enforce(C::Constraints, args...) = function(ctx)
+    reduce(|>, (enforce(Cᵢ, args...) for Cᵢ in C.parts), init=ctx)
+end
 
 
 # Enforce cardinality constraints on the JuMP model.
@@ -291,12 +319,16 @@ end
 
 
 # Internal. Used by `enforce` for `Required`, `Forbidden` and `Permitted`.
-function fix_match_vars(ctx, C, val=1, which=bundle)
+function fix_match_vars(ctx, C, i, j, val=1, which=bundle)
 
     A₀, A, model = C.alloc, ctx.alloc_var, ctx.model
 
-    for i in agents(A₀), g in which(A₀, i)
-        fix(A[i, g], val)
+    # The items affected by agent i's part of the constraint
+    affected = which(A₀, i)
+
+    # Apply the constraint to the bundle of agent j
+    for g in affected
+        fix(A[j, g], val)
     end
 
     return ctx
@@ -305,22 +337,22 @@ end
 
 
 # Enforce inclusion constraints on the JuMP model.
-enforce(C::Required) = function(ctx)
-    fix_match_vars(ctx, C)
+enforce(C::Required, i, j) = function(ctx)
+    fix_match_vars(ctx, C, i, j)
 end
 
 
 # Enforce exclusion constraints on the JuMP model.
-enforce(C::Forbidden) = function(ctx)
-    fix_match_vars(ctx, C, 0)
+enforce(C::Forbidden, i, j) = function(ctx)
+    fix_match_vars(ctx, C, i, j, 0)
 end
 
 
 # Enforce permission constraints (i.e., exclusion constraints with the
 # complement) on the JuMP model.
-enforce(C::Permitted) = function(ctx)
+enforce(C::Permitted, i, j) = function(ctx)
     which(A, i) = setdiff(items(A), bundle(A, i))
-    fix_match_vars(ctx, C ,0, which)
+    fix_match_vars(ctx, C, i, j, 0, which)
 end
 
 
@@ -561,29 +593,49 @@ end
 
 # Extract the allocation, model and maximin value at the end of the pipeline.
 function mm_result(ctx)
-    return (alloc=ctx.alloc,
-            model=ctx.model,
-            mm=objective_value(ctx.model),
-            ctx.res...)
+
+    # If there is no objective, all agents were ignored, and the maximin value
+    # is unbounded:
+    if objective_sense(ctx.model) == MOI.FEASIBILITY_SENSE
+        mm = Inf
+    else
+        mm = objective_value(ctx.model)
+    end
+
+    return (alloc=ctx.alloc, model=ctx.model, mm=mm, ctx.res...)
+
 end
 
 
 """
-    alloc_mm(V[, C]; cutoff=nothing, solver=conf.MIP_SOLVER, kwds...)
+    alloc_mm(V[, C]; cutoff=nothing, ignored_agents=[],
+        solver=conf.MIP_SOLVER, kwds...)
 
-Create an egalitarion or maximin `Allocation`, i.e., one where the minimum
+Create an egalitarian or maximin `Allocation`, i.e., one where the minimum
 bundle value is maximized. The `cutoff`, if any, is a level at which we are
 satisfied, i.e., any allocation where all agents attain this value is
 acceptable. The return value is a named tuple with fields `alloc` (the
 `Allocation`), `mm` (the lowest agent utility) and `model` (the JuMP model
 used in the computation).
 
+The `ignored_agents` argument indicates agents that should be ignored when
+maximizing the minimum. These agents may still receive items, and will
+participate in forming a feasible allocation (possibly with respect to some
+constraint `C`); they are only ignored in the objective.
+
+!!! note
+
+    Most users will probably not need `ignored_agents`. Its primary use is as
+    part of `alloc_mms`, for ignoring agents with an MMS of zero, whose α is
+    unbounded.
+
 $MIP_LIMIT_DOC
 """
-function alloc_mm(V, C=nothing; cutoff=nothing, solver=conf.MIP_SOLVER, kwds...)
+function alloc_mm(V, C=nothing; cutoff=nothing, ignored_agents=[],
+        solver=conf.MIP_SOLVER, kwds...)
 
     init_mip(V, solver; kwds...) |>
-    achieve_mm(cutoff) |>
+    achieve_mm(cutoff, ignored_agents) |>
     enforce(C) |>
     solve_mip |>
     mm_result
@@ -616,6 +668,22 @@ function alloc_lmm(V, C=nothing; solver=conf.MIP_SOLVER, kwds...)
 end
 
 
+# Acts as if agent `i`'s part of constraint `C` applies to all bundles. If `C`
+# is `Symmetric`, this has no effect.
+struct SymmetrizedConstraint{T <: Union{Constraint,Nothing}} <: Constraint
+    C::T
+    i::Int
+end
+enforce(C::SymmetrizedConstraint) = enforce(C.C, C.i)
+
+
+# Get the limit (from `min_bundle` or `max_bundle`) of a given agent
+function get_limit(lim, i)
+    (isnothing(lim) || length(lim) == 1) && return lim
+    return lim[i]
+end
+
+
 """
     mms(V::Additive, i[, C]; solver=conf.MIP_SOLVER, kwds...)
 
@@ -625,26 +693,25 @@ their bundles. Useful, e.g., as a point of reference when determining the
 empirical approximation ratios of approximate MMS allocation algorithms. Also
 used as a subroutine in `alloc_mms`. The return value is a named tuple with the
 fields `mms` (the maximin share of agent `i`) and `model` (the JuMP model used
-in the computation). Currently only implemented for symmetric constrants (cf.
-[`Symmetry`](@ref)).
+in the computation).
 
 $MIP_LIMIT_DOC
-$MIP_LIMIT_DOC_MMS
+
+If a constraint `C` is supplied, and this is asymmetric (i.e., different for the
+different agents), agent `i`'s version is enforced on every bundle to determine
+which partitions are feasible.
 """
-mms(V::Additive, i, C=nothing; kwds...) = mms(V, i, C, Symmetry(C); kwds...)
-function mms(V::Additive, i, C, ::Symmetric; solver=conf.MIP_SOLVER, kwds...)
-
-    lo = get(kwds, :min_bundle, nothing)
-    isnothing(lo) || @assert(allequal(lo))
-
-    hi = get(kwds, :max_bundle, nothing)
-    isnothing(hi) || @assert(allequal(hi))
+function mms(V::Additive, i, C=nothing; solver=conf.MIP_SOLVER, kwds...)
 
     # Let all agents be clones of agent i
-    Vi = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
+    Vᵢ = Additive([value(V, i, g) for _ in agents(V), g in items(V)])
+    Cᵢ = SymmetrizedConstraint(C, i)
+    minbᵢ = get_limit(get(kwds, :min_bundle, nothing), i)
+    maxbᵢ = get_limit(get(kwds, :max_bundle, nothing), i)
 
     # maximin in this scenario is MMS for agent i
-    res = alloc_mm(Vi, C; solver=solver, kwds...)
+    res = alloc_mm(Vᵢ, Cᵢ; solver=solver, kwds...,
+                   min_bundle=minbᵢ, max_bundle=maxbᵢ)
 
     return (mms=res.mm, model=res.model)
 
@@ -664,15 +731,20 @@ allocation constructed by other means. For example:
     A = alloc_rand(V).alloc
     alpha = mms_alpha(V, A, mmss)
 
+If all agents have an MMS of zero, `alpha` will be unbounded, represented by the
+value `Inf`. This is the case even if one or more agents get a value of `0`.
 """
 function mms_alpha(V, A, mmss)
     vals = [value(V, i, A) for i in agents(A)]
-    return minimum(vals ./ mmss)
+    frac = vals ./ mmss
+    frac[isnan.(frac)] .= Inf # we want x/0 to yield Inf even when x == 0
+    return minimum(frac)
 end
 
 
 """
-    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER, kwds...)
+    alloc_mms(V[, C]; cutoff=false, solver=conf.MIP_SOLVER,
+              mms_kwds=(), kwds...)
 
 Find an MMS allocation, i.e., one that satisfies the *maximin share
 guarantee*, where each agent gets a bundle it weakly prefers to its maximin
@@ -686,38 +758,73 @@ in computing `alpha`) and `mms_models` (the JuMP models used to compute the
 individual maximin shares). If `cutoff` is set to `true`, this fraction is
 capped at 1.
 
+If all agents have an MMS of zero, `alpha` will be unbounded, represented by the
+value `Inf`. This is the case even if one or more agents get a value of `0`.
+
 $MIP_LIMIT_DOC
-$MIP_LIMIT_DOC_MMS
+
+When finding an MMS partition for each individual agent, the constraint and
+options act a little differently than when finding the actual allocation. If an
+asymmetric `Constraint` `C` is supplied (i.e., one that is different for the
+different agents), agent `i`'s version is enforced on every bundle to determine
+which partitions are feasible.
+
+The same holds for `min_bundle` and `max_bundle`. Apart from those two, the
+keywords `kwds` are also used for the MMS partitions.
+
+!!! tip
+
+    In some cases, using asymmetric constraints might lead to a situation where
+    a feasible allocation exists, but for some agent, an MMS partition does not.
+    Then the agent's maximin share is undefined! One way around this is to relax
+    the definition a bit, and to permit charity when finding the MMS partitions.
+    The agent will still try to maximize the mininum value of any bundle in this
+    partition, but is not required to allocate every object. This can be
+    achieved as follows:
+
+    ```julia
+    alloc_mms(V, C, mms_kwds=(min_owner=0,))
+    ```
+
+    You should verify that the strategy makes sense for your application,
+    however! In some cases, it might not be necessary, and would just needlessly
+    inflate maximin shares. Also, it is only guaranteed to work for constraints
+    where an empty bundle is feasible; it might fail for [`Required`](@ref), for
+    example. Indeed, for some constraints, one could argue that it might not be
+    advisable to use the MMS criterion to begin with.
+
 """
 function alloc_mms(V::Additive, C=nothing; cutoff=false, solver=conf.MIP_SOLVER,
-    kwds...)
+        mms_kwds=(), kwds...)
 
     N, M = agents(V), items(V)
 
     X = zeros(na(V), ni(V))
 
-    ress = [mms(V, i, C; solver=solver, kwds...) for i in N]
+    ress = [mms(V, i, C; solver=solver, kwds..., mms_kwds...) for i in N]
 
-    # individual MMS values -- also included in the result
+    # Individual maximin shares -- also included in the result
     mmss = [res.mms for res in ress]
 
     mms_models = [res.model for res in ress]
 
-    for i in N
-
-        for g in M
-            X[i, g] = value(V, i, g) / mmss[i]
-        end
-
+    for (i, μ) in enumerate(mmss), g in M
+        X[i, g] = value(V, i, g) / μ
     end
 
     max_alpha = cutoff ? 1.0 : nothing
 
-    # maximin with scaled values is as close to the MMS guarantee as possible
-    res = alloc_mm(Additive(X), C; cutoff=max_alpha, solver=solver, kwds...)
+    res = alloc_mm(Additive(X), C;
+        cutoff = max_alpha,
+        ignored_agents = N[iszero.(mmss)],
+        solver = solver,
+        kwds...)
 
-    return (alloc=res.alloc, model=res.model, mms_models=mms_models,
-            alpha=res.mm, mmss=mmss)
+    return (alloc       = res.alloc,
+            model       = res.model,
+            mms_models  = mms_models,
+            alpha       = res.mm,
+            mmss        = mmss)
 
 end
 
