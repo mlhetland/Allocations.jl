@@ -1,7 +1,7 @@
 import JuMP
 using Allocations
 using Graphs
-using Random: seed!
+using Random: seed!, Xoshiro
 using Test
 
 # For utilities tests:
@@ -199,6 +199,43 @@ function runtests(; slow_tests = true)
         @test Symmetry(Permitted(Allocation()))  == Asymmetric()
 
     end
+
+end
+
+@testset "Data sets" begin
+
+    @test rand_profile === rand_additive
+
+    for _ = 1:10
+        V = rand_additive()
+        @test V isa Additive
+        n, m = na(V), ni(V)
+        @test 2 ≤ n ≤ 10
+        @test 2n ≤ m ≤ 4n
+        @test all(0 .≤ V.values .< 1)
+    end
+
+    let V = rand_additive(n=5:5, m=n->10:10)
+        @test size(V.values) == (5, 10)
+    end
+
+    V = rand_additive()
+    m = ni(V)
+
+    for f in [rand_conflicts_ws98, rand_conflicts_er59, rand_conflicts_ba02],
+        C in [f(m), f(V)]
+
+        @test C isa Conflicts
+        @test C.graph isa AbstractGraph
+        @test nv(C.graph) == m
+
+    end
+
+    rng = Xoshiro(1234)
+    V₁ = rand_additive(rng=rng)
+    rng = Xoshiro(1234)
+    V₂ = rand_additive(rng=rng)
+    @test V₁.values == V₂.values
 
 end
 

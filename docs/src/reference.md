@@ -95,6 +95,13 @@ Modules = [Allocations]
 Pages = ["mip.jl"]
 ```
 
+## Instance generation
+
+```@autodocs
+Modules = [Allocations]
+Pages = ["data.jl"]
+```
+
 ## Configuration
 
 ```@autodocs
