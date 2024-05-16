@@ -49,6 +49,15 @@ the bundle of agent `i` is found using `bundle(A, i)`.
     [Suksompong](https://doi.org/10.1145/3505156.3505162), on the unconstrained
     and constrained versions of the problem, respectively.
 
+In classical [fair division](https://en.wikipedia.org/wiki/Fair_division), the
+resources being allocated are assumed to be *divisible*, and in some recent
+work, a mixture of divisible and indivisible resources is permitted. The
+Allocations package does not support this directly, but you can approximately
+represent a divisible resource as a set of indivisible ones. For example, you
+could follow the strategy used by [Spliddit](http://www.spliddit.org), and
+divide such resources into 100 pieces, giving each piece 1% of the original
+value.
+
 ## Installation
 
 To install the package, you can simply import it in the [Julia
