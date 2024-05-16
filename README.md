@@ -16,7 +16,7 @@ constrained versions of the problem, respectively.
 To install the package, you can simply import it in the [Julia
 REPL](https://docs.julialang.org/en/v1/stdlib/REPL/):
 
-```julia
+```
 julia> using Allocations
 ```
 
@@ -27,7 +27,7 @@ To install a more recent version than the released one, you can use the package
 manager directly. In the Julia REPL, press `]` to enter the `Pkg` REPL, and then
 add the package directly from the source:
 
-```julia
+```
 pkg> add https://github.com/mlhetland/Allocations.jl
 ```
 
@@ -37,7 +37,7 @@ You can then import the module as before.
 
 To specify an allocation problem instance, create a valuation profile:
 
-```julia
+```
 julia> V = Profile([1 2 3; 2 3 1])
 Additive{Matrix{Int64}} with 2 agents and 3 items:
  1  2  3
@@ -49,7 +49,7 @@ Additive{Matrix{Int64}} with 2 agents and 3 items:
 function (ones called `alloc_...`), e.g., for finding a maximum Nash welfare
 (MNW) allocation:
 
-```julia
+```
 julia> res = alloc_mnw(V);
 ```
 
@@ -61,7 +61,7 @@ overhead.
 These functions take a `Profile` as input and return a named tuple with the
 field `alloc` referring to an `Allocation`:
 
-```julia
+```
 julia> A = res.alloc
 Allocation with 2 agents and 3 items:
   1 => {3}
@@ -70,7 +70,7 @@ Allocation with 2 agents and 3 items:
 
 The bundles of each agent is available through the `bundle` function:
 
-```julia
+```
 julia> bundle(A, 2)
 Set{Int64} with 2 elements:
   2
@@ -86,7 +86,7 @@ of the allocation that are naturally computed as part of the allocation process.
 For the MNW case, the objective value (the Nash welfare, which is being
 maximized) is available as `mnw`:
 
-```julia
+```
 julia> res.mnw
 15.0
 ```
@@ -95,7 +95,7 @@ The allocation functions also permit a matrix argument as a shortcut, implicitly
 creating an `Additive`. For example, you can find a maximin share (MMS)
 allocation as follows:
 
-```julia
+```
 julia> alloc_mms([1 1 2 3; 2 1 2 3]).alloc
 Allocation with 2 agents and 4 items:
   1 => {2, 3}
@@ -111,7 +111,7 @@ different solver (from the default `HiGHS.Optimizer`) may speed things up
 considerably. For example, with the appropriate license, one could use use
 [Gurobi](https://www.gurobi.com) as follows:[^2]
 
-```julia
+```
 Allocations.conf.MIP_SOLVER = Gurobi.Optimizer
 ```
 
@@ -126,7 +126,7 @@ it off using some solver-specific flag, supplied to
 parameters, e.g., indicating time limits, acceptable inaccuracies, etc. For
 example:[^4]
 
-```julia
+```
 Allocations.conf.MIP_SOLVER = optimizer_with_attributes(
     Gurobi.Optimizer,
     "LogToConsole" => 0,     # No console output
@@ -138,7 +138,7 @@ Allocations.conf.MIP_SOLVER = optimizer_with_attributes(
 If you're unable to get rid of the output using solver parameters, a simple
 solution is to just silence all output while allocating:
 
-```julia
+```
 julia> redirect_stdout(devnull) do
            alloc_mnw(V)
        end
