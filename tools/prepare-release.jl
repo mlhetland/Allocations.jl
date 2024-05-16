@@ -47,7 +47,7 @@ function main(version)
         open(fname, "w") do io
             print_wrapped(io,
                 replace(read("LICENSE.txt", String),
-                    r"(?<=Copyright (c) ).*?(?=\n\n)"s
+                    r"(?<=Copyright \(c\) ).*?(?=\n\n)"s
                         => "2020-$year $(join(names, ", "))"),
                 width = 78,
                 break_long_words = false,
