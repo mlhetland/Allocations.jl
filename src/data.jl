@@ -72,7 +72,7 @@ function rand_conflicts_ws98(m; k=2:2:div(m, 2), β=Uniform(), rng=default_rng()
     return Conflicts(G)
 end
 
-rand_conflicts_ws98(V::Profile; kwds...) = rand_conflicts_ws98(ni(V), kwds...)
+rand_conflicts_ws98(V::Profile; kwds...) = rand_conflicts_ws98(ni(V); kwds...)
 
 
 """
@@ -89,12 +89,12 @@ generated using `rand`.
 
 `rand_conflicts` is an alias for `rand_conflicts_er59`.
 """
-function rand_conflicts_er59(m, p=Uniform(), rng=default_rng())
+function rand_conflicts_er59(m; p=Uniform(), rng=default_rng())
     G = erdos_renyi(m, rand(rng, p), rng=rng)
     return Conflicts(G)
 end
 
-rand_conflicts_er59(V::Profile; kwds...) = rand_conflicts_er59(ni(V), kwds...)
+rand_conflicts_er59(V::Profile; kwds...) = rand_conflicts_er59(ni(V); kwds...)
 const rand_conflicts = rand_conflicts_er59
 
 
@@ -113,4 +113,4 @@ function rand_conflicts_ba02(m; k=1:m, rng=default_rng())
     return Conflicts(G)
 end
 
-rand_conflicts_ba02(V::Profile; kwds...) = rand_conflicts_ba02(ni(V), kwds...)
+rand_conflicts_ba02(V::Profile; kwds...) = rand_conflicts_ba02(ni(V); kwds...)
