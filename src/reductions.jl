@@ -151,7 +151,7 @@ function reduce(V::Additive, F::Function...)
 
     for f in F
         res = f(V)
-        if res != nothing
+        if res !== nothing
             i, B = res
             R₁ = reduce(V, i => B)
             R₂ = reduce(R₁.profile, F...)
@@ -179,7 +179,7 @@ function reduce(V::Additive, α::Real; greedy::Bool=true)
     if greedy
         function find_combo(V)
             i = findfirst(i -> value(V, i, 1) ≥ α, agents(V))
-            return i == nothing ? nothing : i => [1]
+            return i === nothing ? nothing : i => [1]
         end
 
         return reduce(V, find_combo)
