@@ -43,3 +43,57 @@ bundle `M`.
 function prop_alpha(V, A)
     na(V) * minimum(value(V, i, A) / value(V, i, items(V)) for i in agents(V))
 end
+
+
+# General approximation factor for EF-like properties (EF_ = EF, EF1, EFX, ...),
+# where the value of the other agent's bundle is somehow modified, e.g., by
+# removing some item. This modified value is provided by the function value_:
+function _ef_alpha(V, A, value_)
+    N = agents(V)
+    frac = [value(V, i, A) / value_(V, i, bundle(A, j)) for i in N,
+            j in N if i !== j]
+    frac[isnan.(frac)] .= Inf
+    return minimum(frac)
+end
+
+
+"""
+    ef_alpha(V, A)
+
+Find the approximation factor for *envy-freeness* in the allocation `A` with
+the valuation profile `V`, i.e., how close to envy-freeness each agent is
+guaranteed to get.
+
+If every agent values all other agents' bundles as `0`, the `alpha` returned by
+this function will be `Inf`. This is the case even if the agents also value
+their own bundles as `0`.
+"""
+ef_alpha(V, A) = _ef_alpha(V, A, value)
+
+
+"""
+    ef1_alpha(V, A)
+
+Find the approximation factor for *envy-freeness up to one item* in the
+allocation `A` with the valuation profile `V`, i.e., how close to EF1 each agent
+is guaranteed to get.
+
+If every agent values all other agents' bundles as `0`, the `alpha` returned by
+this function will be `Inf`. This is the case even if the agents also value
+their own bundles as `0`.
+"""
+ef1_alpha(V, A) = _ef_alpha(V, A, value_1)
+
+
+"""
+    efx_alpha(V, A)
+
+Find the approximation factor for *envy-freeness up to any item* in the
+allocation `A` with the valuation profile `V`, i.e., how close to EFX each agent
+is guaranteed to get.
+
+If every agent values all other agents' bundles as `0`, the `alpha` returned by
+this function will be `Inf`. This is the case even if the agents also value
+their own bundles as `0`.
+"""
+efx_alpha(V, A) = _ef_alpha(V, A, value_x)
