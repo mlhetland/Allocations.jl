@@ -684,6 +684,39 @@ value(V::Submodular, i, S) = V.oracles[i](Set(S))
 value(V::Submodular, i, g::Int) = value(V, i, Set(g))
 
 
+"""
+    struct MatroidRank <: Profile
+
+A matroid rank valuation profile, representing how each agent values all
+possible bundles. The profile is constructed from `n` matroids, one for each
+agent, each matroid over the set of goods [m].
+"""
+struct MatroidRank <: Profile
+    Ms::Vector{T} where {T<:Matroid}
+    m::Int
+end
+
+
+na(V::MatroidRank) = length(V.Ms)
+ni(V::MatroidRank) = V.m
+
+
+value(V::MatroidRank, i, S) = rank(V.Ms[i], S)
+value(V::MatroidRank, i, g::Int) = value(V, i, Set(g))
+
+
+value(V::MatroidRank, i, A::Allocation) = value(V, i, bundle(A, i))
+
+
+"""
+    marginal_value(V::MatroidRank, A, i, g)
+
+Returns the marginal value of adding element g to bundle A_i.
+"""
+marginal_value(V::MatroidRank, A, i, g) =
+    value(V, i, union(bundle(A, i), g)) - value(V, i, bundle(A, i))
+
+
 ## Constraints ###############################################################
 
 
@@ -874,6 +907,46 @@ struct Required{T} <: Constraint
     alloc::T
 end
 Symmetry(::Type{<:Required}) = Asymmetric()
+
+
+"""
+    struct MatroidConstraint <: Constraint
+
+A constraint defined by a matroid. An allocation satisfies the matroid
+constraint if every bundle is independent in the given matroid.
+"""
+struct MatroidConstraint <: Constraint
+    matroid::T where {T<:Matroid}
+end
+
+
+"""
+    struct MatroidConstraints <: Constraint
+
+A constraint defined by multiple matroids, one for each agent. An allocation
+satisfies the matroid constraints if every agent's bundle is independent in
+their corresponding matroid.
+"""
+struct MatroidConstraints <: Constraint
+    matroids::Vector{Matroid}
+
+    MatroidConstraints(Ms::Vector{Matroid}) = new(Ms)
+end
+Symmetry(::Type{<:MatroidConstraints}) = Asymmetric()
+
+
+"""
+    MatroidConstraints(itr)
+
+Create a `MatroidConstraints` object from the given iterable object.
+"""
+function MatroidConstraints(itr)
+    Ms = Matroid[]
+    for M in itr
+        push!(Ms, M)
+    end
+    MatroidConstraints(Ms)
+end
 
 
 ## Reductions ################################################################

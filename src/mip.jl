@@ -14,9 +14,10 @@ mutable struct MIPContext{V <: Additive, M, A, S}
     solver::S
     objectives::Vector{Any}
     alloc::Union{Allocation, Nothing}
+    callbacks::Vector{Function}
     res::NamedTuple
 end
-MIPContext(v, a, m, s) = MIPContext(v, a, m, s, [], nothing, (;))
+MIPContext(v, a, m, s) = MIPContext(v, a, m, s, [], nothing, Function[], (;))
 
 
 na(ctx::MIPContext) = na(ctx.profile)
@@ -97,6 +98,11 @@ init_mip(V::Matrix, solver; kwds...) = init_mip(Additive(V), solver; kwds...)
 # ϵ: https://www.gurobi.com/documentation/9.1/refman/intfeastol.html
 function solve_mip(ctx; ϵ=1e-5, check=nothing)
 
+    if !isempty(ctx.callbacks)
+        set_attribute(ctx.model, MOI.LazyConstraintCallback(),
+            cb_data -> lazy_constraint_callback(ctx, cb_data))
+    end
+
     if isempty(ctx.objectives)
         optimize!(ctx.model)
     else
@@ -120,6 +126,17 @@ function solve_mip(ctx; ϵ=1e-5, check=nothing)
 
     return ctx
 
+end
+
+
+# The "master" lazy constraint callback method that runs each registered
+# callback.
+function lazy_constraint_callback(ctx, cb_data)
+    if callback_node_status(cb_data, ctx.model) == MOI.CALLBACK_NODE_STATUS_INTEGER
+        for f in ctx.callbacks
+            f(ctx, cb_data)
+        end
+    end
 end
 
 
@@ -246,6 +263,16 @@ achieve_ggi(wt) = function(ctx)
 end
 
 
+# Set up objective for maximum utilitarian welfare (MUW).
+function achieve_muw(ctx)
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
+
+    @objective(model, Max, utility(V, A))
+
+    return ctx
+end
+
+
 ## Objective-preserving pipeline steps (enforce_...)
 
 # How `enforce` works depends on whether a constraint is symmetric or not.
@@ -353,6 +380,79 @@ end
 enforce(C::Permitted, i, j) = function(ctx)
     which(A, i) = setdiff(items(A), bundle(A, i))
     fix_match_vars(ctx, C, i, j, 0, which)
+end
+
+
+# Add the constraint that any bundle must contain at most r items, where r
+# is the rank of the matroid, since any independent set of a matroid will
+# have at most r items.
+function matroid_initial_constraint(ctx, M, i)
+    A = ctx.alloc_var
+    E = ground_set(M)
+    r = rank(M)
+    @constraint(ctx.model, sum(A[i, g] for g in E) <= r)
+end
+
+
+# Check if agent `i` has a dependent bundle in the matroid `M`, and submit a
+# constraint to the model if necessary.
+function matroid_fix_constraint(ctx, cb_data, M, i)
+    V, A, model = ctx.profile, ctx.alloc_var, ctx.model
+    ϵ = 1e-5
+    bundle = Set()
+
+    for g in items(V)
+        val = callback_value(cb_data, A[i, g])
+        @assert val <= ϵ || val >= 1 - ϵ
+        val >= 1.0 - ϵ && push!(bundle, g)
+    end
+
+    if !is_indep(M, bundle)
+        bundle_rank = rank(M, bundle)
+        con = @build_constraint(sum(A[i, g] for g in bundle) <= bundle_rank)
+        MOI.submit(model, MOI.LazyConstraint(cb_data), con)
+        ctx.added_constraints += 1
+    end
+end
+
+
+# Enforce a symmetric matroid constraint on the JuMP model (using a lazy
+# callback).
+enforce(C::MatroidConstraint) = function (ctx)
+    callback = function (ctx, cb_data)
+        V = ctx.profile
+        M = C.matroid
+        for i in agents(V)
+            matroid_fix_constraint(ctx, cb_data, M, i)
+        end
+    end
+
+    push!(ctx.callbacks, callback)
+
+    V = ctx.profile
+    M = C.matroid
+    for i in agents(V)
+        matroid_initial_constraint(ctx, M, i)
+    end
+
+    return ctx
+end
+
+
+# Enforce an asymmetric matroid constraint on the JuMP model (using lazy
+# callbacks).
+enforce(C::MatroidConstraints, i, j) = function (ctx)
+    callback = function (ctx, cb_data)
+        M = C.matroids[i]
+        matroid_fix_constraint(ctx, cb_data, M, j)
+    end
+
+    push!(ctx.callbacks, callback)
+
+    M = C.matroids[i]
+    matroid_initial_constraint(ctx, M, j)
+
+    return ctx
 end
 
 
@@ -892,5 +992,69 @@ function alloc_ggi(V, C=nothing; wt=wt_gini, solver=conf.MIP_SOLVER, kwds...)
     enforce(C) |>
     solve_mip |>
     ggi_result
+
+end
+
+
+"""
+    rand_priority_profile(n, m; rng=default_rng())
+
+Generate a random valuation profile, based on a random prioritization of the
+items. To ensure that the item priorities will overrule any other
+considerations, the valuation profile is filled using powers of 2. Therefore,
+this function does not work for values of `m` ≥ 63.
+"""
+function rand_priority_profile(n, m; rng=default_rng())
+
+    m < 63 || throw(DomainError(m, "number of items ≥ 63 is not supported"))
+
+    # Random permutation of the items for priority
+    π = randperm(rng, m)
+    # Fill the valuation matrix with ones, so that no item is unwanted
+    X = ones(n, m)
+
+    # Encode the item priorities in an additive profile matrix
+    for g in 1:m
+        i = rand(rng, 1:n)
+        X[i, g] = 2 ^ π[g]
+    end
+
+    return Profile(X)
+
+end
+
+
+function rand_mip_result(ctx)
+    return (profile=ctx.profile, alloc=ctx.alloc, model=ctx.model, ctx.res...)
+end
+
+
+"""
+    alloc_rand_mip(V[, C]; solver=conf.MIP_SOLVER, rng=default_rng(),
+                   kwds...)
+
+Allocate items to agents randomly, in a similar manner to [`alloc_rand`](@ref).
+The implementation is inspired by the [randomized coloring procedure with
+symmetry-breaking](https://doi.org/10.1007/978-3-540-70575-8_26) of Pemmaraju
+and Srinivasan, and is generalized to work with any `Constraint`.
+
+The profile `V` is not used directly, other than to determine the number of
+agents and items.
+
+A random priority profile is generated using [`rand_priority_profile`](@ref),
+such that any constraints will remove the items with lowest priority first.
+To ensure that the MIP respects this priority profile, the utilitarian welfare
+of the allocation is maximized.
+
+$MIP_LIMIT_DOC
+"""
+function alloc_rand_mip(V, C=nothing; solver=conf.MIP_SOLVER, rng=default_rng(),
+        kwds...)
+
+    init_mip(rand_priority_profile(na(V), ni(V), rng=rng), solver; kwds...) |>
+    achieve_muw |>
+    enforce(C) |>
+    solve_mip |>
+    rand_mip_result
 
 end

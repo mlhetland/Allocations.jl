@@ -1,2 +1,4 @@
 dev/
 Manifest.toml
+.vscode/
+test/SuppositionDB/

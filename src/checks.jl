@@ -136,3 +136,41 @@ function check(V, A, C::Conflicts)
     return true
 
 end
+
+
+"""
+    check(V, A, C::MatroidConstraints)
+
+Check whether the allocation `A` respects the matroid constraints `C`.
+"""
+function check(_, A, C::MatroidConstraints)
+    Ms = C.matroids
+
+    @assert length(Ms) == na(A) "Invalid number of matroid constraints"
+
+    for (i, B) in A
+        if !is_indep(Ms[i], B)
+            return false
+        end
+    end
+
+    return true
+end
+
+
+"""
+    check(V, A, C::MatroidConstraint)
+
+Check whether the allocation `A` respects the matroid constraint `C`.
+"""
+function check(_, A, C::MatroidConstraint)
+    M = C.matroid
+
+    for (_, B) in A
+        if !is_indep(M, B)
+            return false
+        end
+    end
+
+    return true
+end

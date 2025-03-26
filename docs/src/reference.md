@@ -64,7 +64,7 @@ are still available, but their use is deprecated. (Run `julia` with
 
 ```@autodocs
 Modules = [Allocations]
-Pages = ["types.jl"]
+Pages = ["types.jl", "smallbitset.jl"]
 ```
 
 ## Checks and measures
@@ -100,6 +100,13 @@ Pages = ["mip.jl"]
 ```@autodocs
 Modules = [Allocations]
 Pages = ["data.jl"]
+```
+
+## Matroids
+
+```@autodocs
+Modules = [Allocations]
+Pages = ["matroids.jl"]
 ```
 
 ## Configuration
