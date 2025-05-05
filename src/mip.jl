@@ -111,7 +111,8 @@ function solve_mip(ctx; ϵ=1e-5, check=nothing)
     end
 
     st = termination_status(ctx.model)
-    @assert st in conf.MIP_SUCCESS "solver termination status is $st"
+    @assert conf.MIP_SUCCESS === nothing || 
+            st in conf.MIP_SUCCESS "solver termination status is $st"
 
     V = ctx.profile
     ctx.alloc = Allocation(na(V), ni(V))
@@ -411,7 +412,6 @@ function matroid_fix_constraint(ctx, cb_data, M, i)
         bundle_rank = rank(M, bundle)
         con = @build_constraint(sum(A[i, g] for g in bundle) <= bundle_rank)
         MOI.submit(model, MOI.LazyConstraint(cb_data), con)
-        ctx.added_constraints += 1
     end
 end
 
